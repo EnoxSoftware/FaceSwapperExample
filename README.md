@@ -20,7 +20,7 @@ Demo
 
 Manual
 -----
-[ReadMe.pdf](ReadMe.pdf)
+[ReadMe.pdf](/FaceSwapperSample/ReadMe.pdf)
 
 
 
