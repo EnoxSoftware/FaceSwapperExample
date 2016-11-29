@@ -101,9 +101,9 @@ namespace FaceSwapperSample
         // Use this for initialization
         void Start ()
         {
-            WebGLFileUploadManager.SetImageEncodeSetting(true);
-            WebGLFileUploadManager.SetAllowedFileName("\\.(png|jpe?g|gif)$");
-            WebGLFileUploadManager.SetImageShrinkingSize(640, 480);
+            WebGLFileUploadManager.SetImageEncodeSetting (true);
+            WebGLFileUploadManager.SetAllowedFileName ("\\.(png|jpe?g|gif)$");
+            WebGLFileUploadManager.SetImageShrinkingSize (640, 480);
             WebGLFileUploadManager.FileUploadEventHandler += fileUploadHandler;
 
             #if UNITY_WEBGL && !UNITY_EDITOR
@@ -140,7 +140,7 @@ namespace FaceSwapperSample
             isFilteringNonFrontalFacesToggle.isOn = isFilteringNonFrontalFaces;
             isShowingDebugFacePointsToggle.isOn = isShowingDebugFacePoints;
 
-            if(imgTexture == null)
+            if (imgTexture == null)
                 imgTexture = Resources.Load ("family") as Texture2D;
 
             gameObject.transform.localScale = new Vector3 (imgTexture.width, imgTexture.height, 1);
@@ -166,7 +166,7 @@ namespace FaceSwapperSample
             OpenCVForUnity.Utils.texture2DToMat (imgTexture, rgbaMat);
             Debug.Log ("rgbaMat ToString " + rgbaMat.ToString ());
 
-            if(faceLandmarkDetector == null)
+            if (faceLandmarkDetector == null)
                 faceLandmarkDetector = new FaceLandmarkDetector (shape_predictor_68_face_landmarks_dat_filepath);
 
             FrontalFaceParam frontalFaceParam = new FrontalFaceParam ();
@@ -181,7 +181,7 @@ namespace FaceSwapperSample
                     detectResult.Add (new OpenCVForUnity.Rect ((int)unityRect.x, (int)unityRect.y, (int)unityRect.width, (int)unityRect.height));
                 }
             } else {
-                if(cascade == null)
+                if (cascade == null)
                     cascade = new CascadeClassifier (haarcascade_frontalface_alt_xml_filepath);
                 if (cascade.empty ()) {
                     Debug.LogError ("cascade file is not loaded.Please copy from “FaceTrackerSample/StreamingAssets/” to “Assets/StreamingAssets/” folder. ");
@@ -199,7 +199,7 @@ namespace FaceSwapperSample
 
                 detectResult = faces.toList ();
 
-                gray.Dispose();
+                gray.Dispose ();
             }
 
             //detect face landmark
@@ -244,13 +244,13 @@ namespace FaceSwapperSample
                 DlibFaceChanger faceChanger = new DlibFaceChanger ();
                 faceChanger.isShowingDebugFacePoints = isShowingDebugFacePoints;
 
-                faceChanger.SetTargetImage(rgbaMat);
+                faceChanger.SetTargetImage (rgbaMat);
 
                 for (int i = 1; i < face_nums.Length; i ++) {
-                    faceChanger.AddFaceChangeData (rgbaMat, landmarkPoints [face_nums[0]], landmarkPoints [face_nums[i]], 1);
+                    faceChanger.AddFaceChangeData (rgbaMat, landmarkPoints [face_nums [0]], landmarkPoints [face_nums [i]], 1);
                 }
 
-                faceChanger.ChangeFace();
+                faceChanger.ChangeFace ();
                 faceChanger.Dispose ();
             }
 
@@ -260,7 +260,7 @@ namespace FaceSwapperSample
                 for (int i = 0; i < face_nums.Length; i ++) {
                     ann = face_nums [i];
                     UnityEngine.Rect rect_ann = new UnityEngine.Rect (detectResult [ann].x, detectResult [ann].y, detectResult [ann].width, detectResult [ann].height);
-                    OpenCVForUnityUtils.DrawFaceRect (rgbaMat, rect_ann, new Scalar(255, 0, 0, 255), 2);
+                    OpenCVForUnityUtils.DrawFaceRect (rgbaMat, rect_ann, new Scalar (255, 0, 0, 255), 2);
                 }
             }
 
@@ -270,23 +270,24 @@ namespace FaceSwapperSample
             OpenCVForUnity.Utils.matToTexture2D (rgbaMat, texture);
             gameObject.GetComponent<Renderer> ().material.mainTexture = texture;
 
-            rgbaMat.Dispose();
+            rgbaMat.Dispose ();
         }
 
         /// <summary>
         /// Files the upload handler.
         /// </summary>
         /// <param name="result">Result.</param>
-        private void fileUploadHandler(UploadedFileInfo[] result){
+        private void fileUploadHandler (UploadedFileInfo[] result)
+        {
 
-            if(result.Length == 0) {
-                Debug.Log("File upload Error!");
+            if (result.Length == 0) {
+                Debug.Log ("File upload Error!");
                 return;
             }
 
-            foreach(UploadedFileInfo file in result){
-                if(file.isSuccess){
-                    Debug.Log("file.filePath: " + file.filePath + " exists:" + File.Exists(file.filePath));
+            foreach (UploadedFileInfo file in result) {
+                if (file.isSuccess) {
+                    Debug.Log ("file.filePath: " + file.filePath + " exists:" + File.Exists (file.filePath));
 
                     imgTexture = new Texture2D (2, 2);
                     byte[] byteArray = File.ReadAllBytes (file.filePath);
@@ -295,7 +296,7 @@ namespace FaceSwapperSample
                     break;
                 }
             }
-            Run();
+            Run ();
         }
 
         // Update is called once per frame
@@ -310,13 +311,13 @@ namespace FaceSwapperSample
         void OnDestroy ()
         {
             WebGLFileUploadManager.FileUploadEventHandler -= fileUploadHandler;
-            WebGLFileUploadManager.Dispose();
+            WebGLFileUploadManager.Dispose ();
 
-            if(faceLandmarkDetector != null)
+            if (faceLandmarkDetector != null)
                 faceLandmarkDetector.Dispose ();
 
-            if(cascade != null)
-                cascade.Dispose();
+            if (cascade != null)
+                cascade.Dispose ();
         }
 
         /// <summary>
@@ -336,7 +337,7 @@ namespace FaceSwapperSample
         /// </summary>
         public void OnShuffleButton ()
         {
-            if(imgTexture != null)
+            if (imgTexture != null)
                 Run ();
         }
 
@@ -351,7 +352,7 @@ namespace FaceSwapperSample
                 isShowingFaceRects = false;
             }
 
-            if(imgTexture != null)
+            if (imgTexture != null)
                 Run ();
         }
 
@@ -366,7 +367,7 @@ namespace FaceSwapperSample
                 useDlibFaceDetecter = false;
             }
 
-            if(imgTexture != null)
+            if (imgTexture != null)
                 Run ();
         }
 
@@ -381,7 +382,7 @@ namespace FaceSwapperSample
                 isFilteringNonFrontalFaces = false;
             }
 
-            if(imgTexture != null)
+            if (imgTexture != null)
                 Run ();
         }
 
@@ -396,7 +397,7 @@ namespace FaceSwapperSample
                 isShowingDebugFacePoints = false;
             }
 
-            if(imgTexture != null)
+            if (imgTexture != null)
                 Run ();
         }
 
@@ -405,7 +406,7 @@ namespace FaceSwapperSample
         /// </summary>
         public void OnUploadImageButton ()
         {
-            WebGLFileUploadManager.PopupDialog(null, "Select image files (.png|.jpg|.gif)");
+            WebGLFileUploadManager.PopupDialog (null, "Select image file (.png|.jpg|.gif)");
         }
     }
 }

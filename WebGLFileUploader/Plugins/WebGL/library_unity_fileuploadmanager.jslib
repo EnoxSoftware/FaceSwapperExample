@@ -364,14 +364,10 @@
                             
                             // dataURL to ArrayBuffer.
                             result.buf = Unity_FileUploadManager.dataURLtoArrayBuffer(displaySrc);
-                            // Create new file.
-                            var file = result.file;
-                            var fileName = file.name.match(/(.*)(?:\.([^.]+$))/)[1] + ".jpg";
-                            var file_property_bag = {
-                                type: "image/jpeg",
-                                lastModified: file.lastModified
-                            };
-                            result.file = new File( [result.buf] , fileName , file_property_bag );
+                            result.name = result.file.name.match(/(.*)(?:\.([^.]+$))/)[1] + ".jpg";
+                            result.size = result.buf.byteLength;
+                            result.type = "image/jpeg";
+                            
                             resolve(writeFileToFS(result));
                         }
                         img.onerror = function () {
@@ -410,10 +406,10 @@
             function writeFileToFS(result) {  
                 return new Promise(function(resolve, reject) {
             
-                    //if(Unity_FileUploadManager.isDebug) console.log("writeFileToFS: " + result.file.name);
+                    //if(Unity_FileUploadManager.isDebug) console.log("writeFileToFS: " + result.name);
                 
                     try {
-                        var filePath = '/' + dirpathStr + '/' + escape(result.file.name);
+                        var filePath = '/' + dirpathStr + '/' + escape(result.name);
                         var u8Arr = new Uint8Array(result.buf);
                         var stream = FS.open(filePath, 'w+');
                         FS.write(stream, u8Arr, 0, u8Arr.length, 0);
@@ -431,7 +427,7 @@
                         result.isSuccess = true;
                         resolve(result);
                     } catch (e) {
-                        //if(Unity_FileUploadManager.isDebug) console.log("writeFileToFS: " + result.file.name + " " + e);
+                        //if(Unity_FileUploadManager.isDebug) console.log("writeFileToFS: " + result.name + " " + e);
                         
                         result.errorCode = Unity_FileUploadManager.ERROR_CODE.FS_IO_ERR;
                         resolve(result);
@@ -448,7 +444,7 @@
                     for (var i=0; i<len; i++){
                         var result = results[i];
                         var file = result.file;
-                        var o = {"name":file.name, "type":file.type, "size":file.size, "lastModified":file.lastModified, "filePath":result.filePath, "isSuccess":result.isSuccess, "errorCode":result.errorCode};
+                        var o = {"name":result.name, "type":result.type, "size":result.size, "lastModified":file.lastModified, "filePath":result.filePath, "isSuccess":result.isSuccess, "errorCode":result.errorCode};
                         destFileArray.push(o);
                     }
                 
@@ -472,7 +468,7 @@
             
             var results = [];
             for (var i = 0, f; f = files[i]; i++) {
-                results.push({"file":f, "buf":null, "filePath":"", "isSuccess":false, "errorCode":Unity_FileUploadManager.ERROR_CODE.NONE});
+                results.push({"file":f, "name":f.name, "size":f.size, "type":f.type, "buf":null, "filePath":"", "isSuccess":false, "errorCode":Unity_FileUploadManager.ERROR_CODE.NONE});
             }
             
             Promise.resolve()
@@ -537,9 +533,11 @@
                 var result = results[i];
                 var f = result.file;
                 
-                output.push('<li' , (result.isSuccess)?'':' style="color: #bbb"' , '>', escape(f.name), ' (', f.type || 'n/a', ') - ',
-                        f.size, ' bytes, last modified: ',
+                output.push('<li' , (result.isSuccess)?'':' style="color: #bbb"' , '>', escape(result.name), ' (', result.type || 'n/a', ') - ',
+                        result.size, ' bytes, last modified: ',
                         f.lastModified, (result.isSuccess) ? ' filePath=' : ' errorCode=', (result.isSuccess) ? result.filePath : result.errorCode,'</li>');
+            
+                console.log("result" + i + ": " + f.name + " " + f.size + " " + f.type + " " + f.lastModified + " / " + result.name + " " + result.size + " " + result.type + " " + result.isSuccess + " " + result.filePath + " " + result.errorCode);
             }
             document.getElementById('file_uploader_file_list').innerHTML += "<ul>" + output.join('') + "</ul>";
         }

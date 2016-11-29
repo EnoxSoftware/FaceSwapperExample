@@ -124,6 +124,11 @@ namespace FaceSwapperSample
         public Toggle isShowingDebugFacePointsToggle;
 
         /// <summary>
+        /// The is upload face mask button.
+        /// </summary>
+        public Button uploadFaceMaskButton;
+
+        /// <summary>
         /// The face mask texture.
         /// </summary>
         Texture2D faceMaskTexture;
@@ -182,6 +187,7 @@ namespace FaceSwapperSample
             yield return getFilePathAsync_1_Coroutine;
 
             Run ();
+            uploadFaceMaskButton.interactable = true;
         }
         #endif
 
@@ -577,27 +583,33 @@ namespace FaceSwapperSample
         }
 
         /// <summary>
-        /// Raises the is add face mask button event.
+        /// Raises the is set face mask button event.
         /// </summary>
-        public void OnAddFaceMaskButton ()
+        public void OnSetFaceMaskButton ()
         {
-            #if UNITY_WEBGL && !UNITY_EDITOR
-            WebGLFileUploadManager.PopupDialog(null, "Select image files (.png|.jpg|.gif)");
-            #else
-            if (faceMaskTexture == null) {
-                faceMaskTexture = Resources.Load ("face_mask") as Texture2D;
-                faceMaskMat = new Mat (faceMaskTexture.height, faceMaskTexture.width, CvType.CV_8UC4);
-                OpenCVForUnity.Utils.texture2DToMat (faceMaskTexture, faceMaskMat);
-                Debug.Log ("faceMaskMat ToString " + faceMaskMat.ToString ());
-                detectedFaceRect = new UnityEngine.Rect ();
+            if (faceMaskMat != null) {
+                faceMaskMat.Dispose ();
             }
-            #endif
+
+            faceMaskTexture = Resources.Load ("face_mask") as Texture2D;
+            faceMaskMat = new Mat (faceMaskTexture.height, faceMaskTexture.width, CvType.CV_8UC4);
+            OpenCVForUnity.Utils.texture2DToMat (faceMaskTexture, faceMaskMat);
+            Debug.Log ("faceMaskMat ToString " + faceMaskMat.ToString ());
+            detectedFaceRect = new UnityEngine.Rect ();
         }
 
         /// <summary>
-        /// Raises the is remove face mask button event.
+        /// Raises the is upload face mask button event.
         /// </summary>
-        public void OnRemoveFaceMaskButton ()
+        public void OnUploadFaceMaskButton ()
+        {
+            WebGLFileUploadManager.PopupDialog (null, "Select frontal face image file (.png|.jpg|.gif)");
+        }
+
+        /// <summary>
+        /// Raises the is reset face mask button event.
+        /// </summary>
+        public void OnResetFaceMaskButton ()
         {
             if (faceMaskTexture != null) {
                 faceMaskTexture = null;

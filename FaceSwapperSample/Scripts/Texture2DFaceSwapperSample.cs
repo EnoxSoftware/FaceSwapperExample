@@ -439,7 +439,7 @@ namespace FaceSwapperSample
         /// </summary>
         public void OnUploadImageButton ()
         {
-            WebGLFileUploadManager.PopupDialog (null, "Select image files (.png|.jpg|.gif)");
+            WebGLFileUploadManager.PopupDialog (null, "Select image file (.png|.jpg|.gif)");
         }
     }
 }
