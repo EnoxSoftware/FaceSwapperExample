@@ -1,22 +1,22 @@
-﻿using DlibFaceLandmarkDetector;
-using OpenCVForUnity;
-using OpenCVForUnity.RectangleTrack;
-using OpenCVForUnity.FaceSwap;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using System.Collections;
+using DlibFaceLandmarkDetector;
+using OpenCVForUnity;
+using OpenCVForUnity.FaceSwap;
+using OpenCVForUnity.RectangleTrack;
 
 #if UNITY_5_3 || UNITY_5_3_OR_NEWER
 using UnityEngine.SceneManagement;
 #endif
 
-namespace FaceSwapperSample
+namespace FaceSwapperExample
 {
     /// <summary>
-    /// Face Swapper from VideoCapture Sample.
+    /// Face Swapper from videoCapture example.
     /// </summary>
-    public class VideoCaptureFaceSwapperSample : MonoBehaviour
+    public class VideoCaptureFaceSwapperExample : MonoBehaviour
     {
 
         /// <summary>
@@ -243,7 +243,7 @@ namespace FaceSwapperSample
             grayMat = new Mat ((int)frameHeight, (int)frameWidth, CvType.CV_8UC1);
             cascade = new CascadeClassifier (haarcascade_frontalface_alt_xml_filepath);
             if (cascade.empty ()) {
-                Debug.LogError ("cascade file is not loaded.Please copy from “FaceTrackerSample/StreamingAssets/” to “Assets/StreamingAssets/” folder. ");
+                Debug.LogError ("cascade file is not loaded.Please copy from “FaceTrackerExample/StreamingAssets/” to “Assets/StreamingAssets/” folder. ");
             }
 
             isShowingFaceRectsToggle.isOn = isShowingFaceRects;
@@ -291,6 +291,11 @@ namespace FaceSwapperSample
                         cascade.detectMultiScale (equalizeHistMat, faces, 1.1f, 2, 0 | Objdetect.CASCADE_SCALE_IMAGE, new OpenCVForUnity.Size (equalizeHistMat.cols () * 0.15, equalizeHistMat.cols () * 0.15), new Size ());
 
                         detectResult = faces.toList ();
+
+                        // Adjust to Dilb's result.
+                        foreach (OpenCVForUnity.Rect r in detectResult) {
+                            r.y += (int)(r.height * 0.1f);
+                        }
                     }
                 }
 
@@ -308,10 +313,7 @@ namespace FaceSwapperSample
                     UnityEngine.Rect rect = new UnityEngine.Rect (openCVRect.x, openCVRect.y, openCVRect.width, openCVRect.height);
 
                     List<Vector2> points = faceLandmarkDetector.DetectLandmark (rect);
-                    if (points.Count > 0) {
-                        //OpenCVForUnityUtils.DrawFaceLandmark(rgbMat, points, new Scalar(0, 255, 0, 255), 2);
-                        landmarkPoints.Add (points);
-                    }
+                    landmarkPoints.Add (points);
                 }
 
                 //filter nonfrontalface
@@ -383,9 +385,9 @@ namespace FaceSwapperSample
         public void OnBackButton ()
         {
             #if UNITY_5_3 || UNITY_5_3_OR_NEWER
-            SceneManager.LoadScene ("FaceSwapperSample");
+            SceneManager.LoadScene ("FaceSwapperExample");
             #else
-            Application.LoadLevel ("FaceSwapperSample");
+            Application.LoadLevel ("FaceSwapperExample");
             #endif
         }
 

@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace FaceSwapperSample
+namespace FaceSwapperExample
 {
 	/// <summary>
 	/// Utility class for the integration of DlibFaceLandmarkDetector and OpenCVForUnity.

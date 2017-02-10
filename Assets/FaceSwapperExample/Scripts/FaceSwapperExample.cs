@@ -5,12 +5,12 @@ using System.Collections;
 using UnityEngine.SceneManagement;
 #endif
 
-namespace FaceSwapperSample
+namespace FaceSwapperExample
 {
     /// <summary>
-    /// Face swapper sample.
+    /// Face swapper example.
     /// </summary>
-    public class FaceSwapperSample : MonoBehaviour
+    public class FaceSwapperExample : MonoBehaviour
     {
 
         // Use this for initialization
@@ -34,48 +34,48 @@ namespace FaceSwapperSample
             #endif
         }
 
-        public void OnTexture2DFaceSwapperSample ()
+        public void OnTexture2DFaceSwapperExample ()
         {
             #if UNITY_5_3 || UNITY_5_3_OR_NEWER
-            SceneManager.LoadScene ("Texture2DFaceSwapperSample");
+            SceneManager.LoadScene ("Texture2DFaceSwapperExample");
             #else
-            Application.LoadLevel ("Texture2DFaceSwapperSample");
+            Application.LoadLevel ("Texture2DFaceSwapperExample");
             #endif
         }
 
-        public void OnWebCamTextureFaceSwapperSample ()
+        public void OnWebCamTextureFaceSwapperExample ()
         {
             #if UNITY_5_3 || UNITY_5_3_OR_NEWER
-            SceneManager.LoadScene ("WebCamTextureFaceSwapperSample");
+            SceneManager.LoadScene ("WebCamTextureFaceSwapperExample");
             #else
-            Application.LoadLevel ("WebCamTextureFaceSwapperSample");
+            Application.LoadLevel ("WebCamTextureFaceSwapperExample");
             #endif
         }
 
-        public void OnVideoCaptureFaceSwapperSample ()
+        public void OnVideoCaptureFaceSwapperExample ()
         {
             #if UNITY_5_3 || UNITY_5_3_OR_NEWER
-            SceneManager.LoadScene ("VideoCaptureFaceSwapperSample");
+            SceneManager.LoadScene ("VideoCaptureFaceSwapperExample");
             #else
-            Application.LoadLevel ("VideoCaptureFaceSwapperSample");
+            Application.LoadLevel ("VideoCaptureFaceSwapperExample");
             #endif
         }
 
-        public void OnTexture2DFaceChangerSample ()
+        public void OnTexture2DFaceChangerExample ()
         {
             #if UNITY_5_3 || UNITY_5_3_OR_NEWER
-            SceneManager.LoadScene ("Texture2DFaceChangerSample");
+            SceneManager.LoadScene ("Texture2DFaceChangerExample");
             #else
-            Application.LoadLevel ("Texture2DFaceChangerSample");
+            Application.LoadLevel ("Texture2DFaceChangerExample");
             #endif
         }
 
-        public void OnWebCamTextureFaceChangerSample ()
+        public void OnWebCamTextureFaceChangerExample ()
         {
             #if UNITY_5_3 || UNITY_5_3_OR_NEWER
-            SceneManager.LoadScene ("WebCamTextureFaceChangerSample");
+            SceneManager.LoadScene ("WebCamTextureFaceChangerExample");
             #else
-            Application.LoadLevel ("WebCamTextureFaceChangerSample");
+            Application.LoadLevel ("WebCamTextureFaceChangerExample");
             #endif
         }
     }

@@ -2,23 +2,23 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using UnityEngine;
+using UnityEngine.UI;
 using DlibFaceLandmarkDetector;
 using OpenCVForUnity;
 using OpenCVForUnity.FaceChange;
-using UnityEngine;
-using UnityEngine.UI;
 using WebGLFileUploader;
 
 #if UNITY_5_3 || UNITY_5_3_OR_NEWER
 using UnityEngine.SceneManagement;
 #endif
 
-namespace FaceSwapperSample
+namespace FaceSwapperExample
 {
     /// <summary>
-    /// Texture2D face changer sample.
+    /// Texture2D face changer example.
     /// </summary>
-    public class Texture2DFaceChangerSample : MonoBehaviour
+    public class Texture2DFaceChangerExample : MonoBehaviour
     {
         /// <summary>
         /// The image texture.
@@ -184,7 +184,7 @@ namespace FaceSwapperSample
                 if (cascade == null)
                     cascade = new CascadeClassifier (haarcascade_frontalface_alt_xml_filepath);
                 if (cascade.empty ()) {
-                    Debug.LogError ("cascade file is not loaded.Please copy from “FaceTrackerSample/StreamingAssets/” to “Assets/StreamingAssets/” folder. ");
+                    Debug.LogError ("cascade file is not loaded.Please copy from “FaceTrackerExample/StreamingAssets/” to “Assets/StreamingAssets/” folder. ");
                 }
 
                 //convert image to greyscale
@@ -199,6 +199,11 @@ namespace FaceSwapperSample
 
                 detectResult = faces.toList ();
 
+                // Adjust to Dilb's result.
+                foreach (OpenCVForUnity.Rect r in detectResult) {
+                    r.y += (int)(r.height * 0.1f);
+                }
+
                 gray.Dispose ();
             }
 
@@ -209,15 +214,11 @@ namespace FaceSwapperSample
                 UnityEngine.Rect rect = new UnityEngine.Rect (openCVRect.x, openCVRect.y, openCVRect.width, openCVRect.height);
 
                 Debug.Log ("face : " + rect);
-
                 //OpenCVForUnityUtils.DrawFaceRect(imgMat, rect, new Scalar(255, 0, 0, 255), 2);
 
                 List<Vector2> points = faceLandmarkDetector.DetectLandmark (rect);
-                if (points.Count > 0) {
-
-                    //OpenCVForUnityUtils.DrawFaceLandmark(imgMat, points, new Scalar(0, 255, 0, 255), 2);
-                    landmarkPoints.Add (points);
-                }
+                //OpenCVForUnityUtils.DrawFaceLandmark(imgMat, points, new Scalar(0, 255, 0, 255), 2);
+                landmarkPoints.Add (points);
             }
 
 
@@ -254,13 +255,17 @@ namespace FaceSwapperSample
                 faceChanger.Dispose ();
             }
 
-            //show face rects
+            // draw face rects.
             if (isShowingFaceRects) {
-                int ann = 0;
-                for (int i = 0; i < face_nums.Length; i ++) {
-                    ann = face_nums [i];
-                    UnityEngine.Rect rect_ann = new UnityEngine.Rect (detectResult [ann].x, detectResult [ann].y, detectResult [ann].width, detectResult [ann].height);
-                    OpenCVForUnityUtils.DrawFaceRect (rgbaMat, rect_ann, new Scalar (255, 0, 0, 255), 2);
+                int ann = face_nums[0]; 
+                UnityEngine.Rect rect_ann = new UnityEngine.Rect (detectResult [ann].x, detectResult [ann].y, detectResult [ann].width, detectResult [ann].height);
+                OpenCVForUnityUtils.DrawFaceRect (rgbaMat, rect_ann, new Scalar (255, 255, 0, 255), 2);
+                
+                int bob = 0;
+                for (int i = 1; i < face_nums.Length; i ++) {
+                    bob = face_nums [i];
+                    UnityEngine.Rect rect_bob = new UnityEngine.Rect (detectResult [bob].x, detectResult [bob].y, detectResult [bob].width, detectResult [bob].height);
+                    OpenCVForUnityUtils.DrawFaceRect (rgbaMat, rect_bob, new Scalar (255, 0, 0, 255), 2);
                 }
             }
 
@@ -271,38 +276,6 @@ namespace FaceSwapperSample
             gameObject.GetComponent<Renderer> ().material.mainTexture = texture;
 
             rgbaMat.Dispose ();
-        }
-
-        /// <summary>
-        /// Files the upload handler.
-        /// </summary>
-        /// <param name="result">Result.</param>
-        private void fileUploadHandler (UploadedFileInfo[] result)
-        {
-
-            if (result.Length == 0) {
-                Debug.Log ("File upload Error!");
-                return;
-            }
-
-            foreach (UploadedFileInfo file in result) {
-                if (file.isSuccess) {
-                    Debug.Log ("file.filePath: " + file.filePath + " exists:" + File.Exists (file.filePath));
-
-                    imgTexture = new Texture2D (2, 2);
-                    byte[] byteArray = File.ReadAllBytes (file.filePath);
-                    imgTexture.LoadImage (byteArray);
-
-                    break;
-                }
-            }
-            Run ();
-        }
-
-        // Update is called once per frame
-        void Update ()
-        {
-
         }
 
         /// <summary>
@@ -326,9 +299,9 @@ namespace FaceSwapperSample
         public void OnBackButton ()
         {
             #if UNITY_5_3 || UNITY_5_3_OR_NEWER
-            SceneManager.LoadScene ("FaceSwapperSample");
+            SceneManager.LoadScene ("FaceSwapperExample");
             #else
-            Application.LoadLevel ("FaceSwapperSample");
+            Application.LoadLevel ("FaceSwapperExample");
             #endif
         }
 
@@ -402,11 +375,38 @@ namespace FaceSwapperSample
         }
 
         /// <summary>
-        /// Raises the is upload image button event.
+        /// Raises the upload image button event.
         /// </summary>
         public void OnUploadImageButton ()
         {
             WebGLFileUploadManager.PopupDialog (null, "Select image file (.png|.jpg|.gif)");
+        }
+
+        
+        /// <summary>
+        /// Files the upload handler.
+        /// </summary>
+        /// <param name="result">Result.</param>
+        private void fileUploadHandler (UploadedFileInfo[] result)
+        {
+            
+            if (result.Length == 0) {
+                Debug.Log ("File upload Error!");
+                return;
+            }
+            
+            foreach (UploadedFileInfo file in result) {
+                if (file.isSuccess) {
+                    Debug.Log ("file.filePath: " + file.filePath + " exists:" + File.Exists (file.filePath));
+                    
+                    imgTexture = new Texture2D (2, 2);
+                    byte[] byteArray = File.ReadAllBytes (file.filePath);
+                    imgTexture.LoadImage (byteArray);
+                    
+                    break;
+                }
+            }
+            Run ();
         }
     }
 }

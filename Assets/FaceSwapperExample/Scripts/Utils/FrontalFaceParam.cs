@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using DlibFaceLandmarkDetector;
 using OpenCVForUnity;
 
-namespace FaceSwapperSample
+namespace FaceSwapperExample
 {
 	public class FrontalFaceParam : IDisposable
 	{
