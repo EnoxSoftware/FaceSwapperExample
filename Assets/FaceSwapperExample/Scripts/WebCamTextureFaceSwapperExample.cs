@@ -226,9 +226,9 @@ namespace FaceSwapperExample
 
             grayMat = new Mat (webCamTextureMat.rows (), webCamTextureMat.cols (), CvType.CV_8UC1);
             cascade = new CascadeClassifier (haarcascade_frontalface_alt_xml_filepath);
-            if (cascade.empty ()) {
-                Debug.LogError ("cascade file is not loaded.Please copy from “FaceTrackerExample/StreamingAssets/” to “Assets/StreamingAssets/” folder. ");
-            }
+//            if (cascade.empty ()) {
+//                Debug.LogError ("cascade file is not loaded.Please copy from “FaceTrackerExample/StreamingAssets/” to “Assets/StreamingAssets/” folder. ");
+//            }
 
             frontalFaceParam = new FrontalFaceParam ();
         }

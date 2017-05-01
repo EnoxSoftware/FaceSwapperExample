@@ -242,9 +242,9 @@ namespace FaceSwapperExample
 
             grayMat = new Mat ((int)frameHeight, (int)frameWidth, CvType.CV_8UC1);
             cascade = new CascadeClassifier (haarcascade_frontalface_alt_xml_filepath);
-            if (cascade.empty ()) {
-                Debug.LogError ("cascade file is not loaded.Please copy from “FaceTrackerExample/StreamingAssets/” to “Assets/StreamingAssets/” folder. ");
-            }
+//            if (cascade.empty ()) {
+//                Debug.LogError ("cascade file is not loaded.Please copy from “FaceTrackerExample/StreamingAssets/” to “Assets/StreamingAssets/” folder. ");
+//            }
 
             isShowingFaceRectsToggle.isOn = isShowingFaceRects;
             useDlibFaceDetecterToggle.isOn = useDlibFaceDetecter;
