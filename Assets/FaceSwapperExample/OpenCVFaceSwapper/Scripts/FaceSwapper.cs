@@ -6,7 +6,7 @@ namespace OpenCVForUnity.FaceSwap
 {
     /// <summary>
     /// FaceSwaper.
-    /// Code is the rewrite of https://github.com/mc-jesus/FaceSwap using the “OpenCV for Unity” and "Dlib FaceLandmark Detector". 
+    /// This code is a rewrite of https://github.com/mc-jesus/FaceSwap using "OpenCV for Unity" and "Dlib FaceLandmark Detector".
     /// </summary>
     public class FaceSwapper : IDisposable
     {

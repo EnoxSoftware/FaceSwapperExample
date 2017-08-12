@@ -6,7 +6,7 @@ namespace OpenCVForUnity.FaceChange
 {
     /// <summary>
     /// FaceChanger.
-    /// Code is the rewrite of https://github.com/mc-jesus/FaceSwap using the “OpenCV for Unity”. 
+    /// This code is a rewrite of https://github.com/mc-jesus/FaceSwap using "OpenCV for Unity".
     /// </summary>
     public class FaceChanger : IDisposable
     {
