@@ -15,7 +15,7 @@ using UnityEngine.SceneManagement;
 namespace FaceSwapperExample
 {
     /// <summary>
-    /// WebCamTexture face swapper example.
+    /// WebCamTexture FaceSwapper Example
     /// </summary>
     [RequireComponent (typeof(WebCamTextureToMatHelper))]
     public class WebCamTextureFaceSwapperExample : MonoBehaviour
@@ -136,9 +136,9 @@ namespace FaceSwapperExample
         string haarcascade_frontalface_alt_xml_filepath;
 
         /// <summary>
-        /// The shape_predictor_68_face_landmarks_dat_filepath.
+        /// The sp_human_face_68_dat_filepath.
         /// </summary>
-        string shape_predictor_68_face_landmarks_dat_filepath;
+        string sp_human_face_68_dat_filepath;
 
         #if UNITY_WEBGL && !UNITY_EDITOR
         Stack<IEnumerator> coroutines = new Stack<IEnumerator> ();
@@ -155,7 +155,7 @@ namespace FaceSwapperExample
             StartCoroutine (getFilePath_Coroutine);
             #else
             haarcascade_frontalface_alt_xml_filepath = OpenCVForUnity.Utils.getFilePath ("haarcascade_frontalface_alt.xml");
-            shape_predictor_68_face_landmarks_dat_filepath = DlibFaceLandmarkDetector.Utils.getFilePath ("shape_predictor_68_face_landmarks.dat");
+            sp_human_face_68_dat_filepath = DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68.dat");
             Run ();
             #endif
         }
@@ -169,8 +169,8 @@ namespace FaceSwapperExample
             coroutines.Push (getFilePathAsync_0_Coroutine);
             yield return StartCoroutine (getFilePathAsync_0_Coroutine);
 
-            var getFilePathAsync_1_Coroutine = DlibFaceLandmarkDetector.Utils.getFilePathAsync ("shape_predictor_68_face_landmarks.dat", (result) => {
-                shape_predictor_68_face_landmarks_dat_filepath = result;
+            var getFilePathAsync_1_Coroutine = DlibFaceLandmarkDetector.Utils.getFilePathAsync ("sp_human_face_68.dat", (result) => {
+                sp_human_face_68_dat_filepath = result;
             });
             coroutines.Push (getFilePathAsync_1_Coroutine);
             yield return StartCoroutine (getFilePathAsync_1_Coroutine);
@@ -185,7 +185,7 @@ namespace FaceSwapperExample
         {
             rectangleTracker = new RectangleTracker ();
 
-            faceLandmarkDetector = new FaceLandmarkDetector (shape_predictor_68_face_landmarks_dat_filepath);
+            faceLandmarkDetector = new FaceLandmarkDetector (sp_human_face_68_dat_filepath);
 
             faceSwapper = new DlibFaceSwapper ();
             faceSwapper.useSeamlessCloneForPasteFaces = useSeamlessClone;
