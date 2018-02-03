@@ -8,7 +8,6 @@ using UnityEngine.UI;
 using DlibFaceLandmarkDetector;
 using OpenCVForUnity;
 using OpenCVForUnity.FaceChange;
-using WebGLFileUploader;
 
 #if UNITY_5_3 || UNITY_5_3_OR_NEWER
 using UnityEngine.SceneManagement;
@@ -104,11 +103,6 @@ namespace FaceSwapperExample
         // Use this for initialization
         void Start ()
         {
-            WebGLFileUploadManager.SetImageEncodeSetting (true);
-            WebGLFileUploadManager.SetAllowedFileName ("\\.(png|jpe?g|gif)$");
-            WebGLFileUploadManager.SetImageShrinkingSize (640, 480);
-            WebGLFileUploadManager.onFileUploaded += OnFileUploaded;
-
             #if UNITY_WEBGL && !UNITY_EDITOR
             var getFilePath_Coroutine = GetFilePath ();
             coroutines.Push (getFilePath_Coroutine);
@@ -291,9 +285,6 @@ namespace FaceSwapperExample
         /// </summary>
         void OnDestroy ()
         {
-            WebGLFileUploadManager.onFileUploaded -= OnFileUploaded;
-            WebGLFileUploadManager.Dispose ();
-
             if (faceLandmarkDetector != null)
                 faceLandmarkDetector.Dispose ();
 
@@ -387,39 +378,6 @@ namespace FaceSwapperExample
 
             if (imgTexture != null)
                 Run ();
-        }
-
-        /// <summary>
-        /// Raises the upload image button click event.
-        /// </summary>
-        public void OnUploadImageButtonClick ()
-        {
-            WebGLFileUploadManager.PopupDialog (null, "Select image file (.png|.jpg|.gif)");
-        }
-        
-        /// <summary>
-        /// Raises the file uploaded event.
-        /// </summary>
-        /// <param name="result">Uploaded file infos.</param>
-        private void OnFileUploaded (UploadedFileInfo[] result)
-        {
-            if (result.Length == 0) {
-                Debug.Log ("File upload Error!");
-                return;
-            }
-            
-            foreach (UploadedFileInfo file in result) {
-                if (file.isSuccess) {
-                    Debug.Log ("file.filePath: " + file.filePath + " exists:" + File.Exists (file.filePath));
-                    
-                    imgTexture = new Texture2D (2, 2);
-                    byte[] byteArray = File.ReadAllBytes (file.filePath);
-                    imgTexture.LoadImage (byteArray);
-                    
-                    break;
-                }
-            }
-            Run ();
         }
     }
 }

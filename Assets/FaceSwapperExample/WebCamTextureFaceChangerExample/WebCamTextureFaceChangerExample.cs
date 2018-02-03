@@ -8,7 +8,6 @@ using DlibFaceLandmarkDetector;
 using OpenCVForUnity;
 using OpenCVForUnity.FaceChange;
 using OpenCVForUnity.RectangleTrack;
-using WebGLFileUploader;
 
 #if UNITY_5_3 || UNITY_5_3_OR_NEWER
 using UnityEngine.SceneManagement;
@@ -159,11 +158,6 @@ namespace FaceSwapperExample
         // Use this for initialization
         void Start ()
         {
-            WebGLFileUploadManager.SetImageEncodeSetting (true);
-            WebGLFileUploadManager.SetAllowedFileName ("\\.(png|jpe?g|gif)$");
-            WebGLFileUploadManager.SetImageShrinkingSize (640, 480);
-            WebGLFileUploadManager.onFileUploaded += OnFileUploaded;
-
             webCamTextureToMatHelper = gameObject.GetComponent<WebCamTextureToMatHelper> ();
 
             #if UNITY_WEBGL && !UNITY_EDITOR
@@ -582,14 +576,6 @@ namespace FaceSwapperExample
         }
 
         /// <summary>
-        /// Raises the upload face mask button click event.
-        /// </summary>
-        public void OnUploadFaceMaskButtonClick ()
-        {
-            WebGLFileUploadManager.PopupDialog (null, "Select frontal face image file (.png|.jpg|.gif)");
-        }
-
-        /// <summary>
         /// Raises the reset face mask button click event.
         /// </summary>
         public void OnResetFaceMaskButtonClick ()
@@ -598,41 +584,6 @@ namespace FaceSwapperExample
                 faceMaskTexture = null;
                 faceMaskMat.Dispose ();
                 faceMaskMat = null;
-            }
-        }
-        
-        /// <summary>
-        /// Raises the file uploaded event.
-        /// </summary>
-        /// <param name="result">Uploaded file infos.</param>
-        private void OnFileUploaded (UploadedFileInfo[] result)
-        {
-            
-            if (result.Length == 0) {
-                Debug.Log ("File upload Error!");
-                return;
-            }
-            
-            foreach (UploadedFileInfo file in result) {
-                if (file.isSuccess) {
-                    Debug.Log ("file.filePath: " + file.filePath + " exists:" + File.Exists (file.filePath));
-                    
-                    faceMaskTexture = new Texture2D (2, 2);
-                    byte[] byteArray = File.ReadAllBytes (file.filePath);
-                    faceMaskTexture.LoadImage (byteArray);
-                    
-                    break;
-                }
-            }
-            
-            if (faceMaskTexture != null) {
-                if (faceMaskMat != null)
-                    faceMaskMat.Dispose ();
-                
-                faceMaskMat = new Mat (faceMaskTexture.height, faceMaskTexture.width, CvType.CV_8UC4);
-                OpenCVForUnity.Utils.texture2DToMat (faceMaskTexture, faceMaskMat);
-                Debug.Log ("faceMaskMat ToString " + faceMaskMat.ToString ());
-                detectedFaceRect = new UnityEngine.Rect ();
             }
         }
     }
