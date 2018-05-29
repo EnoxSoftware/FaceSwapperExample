@@ -77,11 +77,6 @@ namespace FaceSwapperExample
         public Toggle displayDebugFacePointsToggle;
 
         /// <summary>
-        /// The upload image button.
-        /// </summary>
-        public Button uploadImageButton;
-
-        /// <summary>
         /// The image texture.
         /// </summary>
         Texture2D imgTexture;
@@ -142,7 +137,6 @@ namespace FaceSwapperExample
             coroutines.Clear ();
 
             Run ();
-            uploadImageButton.interactable = true;
         }
         #endif
 

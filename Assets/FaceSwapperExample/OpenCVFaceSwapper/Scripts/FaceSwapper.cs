@@ -10,7 +10,6 @@ namespace OpenCVForUnity.FaceSwap
     /// </summary>
     public class FaceSwapper : IDisposable
     {
-
         protected Rect rect_ann, rect_bob;
         protected float maskAlpha;
 
@@ -69,14 +68,14 @@ namespace OpenCVForUnity.FaceSwap
         public bool isShowingDebugFacePoints;
 
 
-        // Initialize face swapped with landmarks
+        // Initialize face swapped with landmarks.
         public FaceSwapper()
         {
 			trans_ann_to_bob = new Mat();
 			trans_bob_to_ann = new Mat();
         }
 
-        //Swaps faces in points on frame
+        // Swaps faces in points on frame.
         public void SwapFaces(Mat frame, Point[] landmark_points_ann, Point[] landmark_points_bob, float alpha)
         {
             alpha = alpha > 0 ? alpha : 0;
@@ -163,9 +162,35 @@ namespace OpenCVForUnity.FaceSwap
             }
             else
             {
-                colorCorrectFaces();
                 featherMasks();
-                pasteFacesOnFrame();
+
+                // Matches Ann face color to Bob face color and vice versa.
+                using (Mat rect_ann_small_frame = new Mat(small_frame, rect_ann))
+                using (Mat rect_ann_warpped_faces = new Mat(warpped_faces, rect_ann))
+                using (Mat rect_ann_warpped_mask_bob = new Mat(warpped_mask_bob, rect_ann))
+                using (Mat rect_ann_refined_masks = new Mat(refined_masks, rect_ann))
+                {
+                    specifyHistogram(rect_ann_small_frame, rect_ann_warpped_faces, rect_ann_warpped_mask_bob);
+//                    TransferColor_Lab (rect_ann_small_frame, rect_ann_warpped_faces, rect_ann_warpped_mask_bob);
+//                    TransferColor_YCrCb (rect_ann_small_frame, rect_ann_warpped_faces, rect_ann_warpped_mask_bob);
+
+                    // Pastes source face on original frame
+                    AlphaBlend_pixel (rect_ann_warpped_faces, rect_ann_small_frame, rect_ann_refined_masks, rect_ann_small_frame);
+//                    AlphaBlend_mat (rect_ann_warpped_faces, rect_ann_small_frame, rect_ann_refined_masks, rect_ann_small_frame);
+                }
+                using (Mat rect_bob_small_frame = new Mat(small_frame, rect_bob))
+                using (Mat rect_bob_warpped_faces = new Mat(warpped_faces, rect_bob))
+                using (Mat rect_bob_warpped_mask_ann = new Mat(warpped_mask_ann, rect_bob))
+                using (Mat rect_bob_refined_masks = new Mat(refined_masks, rect_bob))
+                {
+                    specifyHistogram(rect_bob_small_frame, rect_bob_warpped_faces, rect_bob_warpped_mask_ann);
+//                    TransferColor_Lab (rect_bob_small_frame, rect_bob_warpped_faces, rect_bob_warpped_mask_ann);
+//                    TransferColor_YCrCb (rect_bob_small_frame, rect_bob_warpped_faces, rect_bob_warpped_mask_ann);
+
+                    // Pastes source face on original frame
+                    AlphaBlend_pixel (rect_bob_warpped_faces, rect_bob_small_frame, rect_bob_refined_masks, rect_bob_small_frame);
+//                    AlphaBlend_mat (rect_bob_warpped_faces, rect_bob_small_frame, rect_bob_refined_masks, rect_bob_small_frame);
+                }
             }
 
 
@@ -393,7 +418,7 @@ namespace OpenCVForUnity.FaceSwap
             }
         }
 
-        // Returns minimal Mat containing both faces
+        // Returns minimal Mat containing both faces.
         private Rect getMinFrameRect(Mat frame, Rect rect_ann, Rect rect_bob)
         {
             Rect bounding_rect = RectUtils.Union(rect_ann, rect_bob);
@@ -414,7 +439,7 @@ namespace OpenCVForUnity.FaceSwap
             return rect;
         }
 
-        // Finds facial landmarks on faces and extracts the useful points
+        // Finds facial landmarks on faces and extracts the useful points.
         protected virtual void getFacePoints(Point[] landmark_points, Point[] points, Point[] affine_transform_keypoints)
         {
             if (landmark_points.Length != 9)
@@ -458,14 +483,14 @@ namespace OpenCVForUnity.FaceSwap
             return points;
         }
 
-        // Calculates transformation matrices based on points extracted by getFacePoints
+        // Calculates transformation matrices based on points extracted by getFacePoints.
         private void getTransformationMatrices()
         {
             trans_ann_to_bob = Imgproc.getAffineTransform(new MatOfPoint2f(affine_transform_keypoints_ann), new MatOfPoint2f(affine_transform_keypoints_bob));
             Imgproc.invertAffineTransform(trans_ann_to_bob, trans_bob_to_ann);
         }
 
-        // Creates masks for faces based on the points extracted in getFacePoints
+        // Creates masks for faces based on the points extracted in getFacePoints.
         private void getMasks()
         {
             mask_ann.setTo(Scalar.all(0));
@@ -474,14 +499,14 @@ namespace OpenCVForUnity.FaceSwap
             Imgproc.fillConvexPoly(mask_bob, new MatOfPoint(points_bob), new Scalar(255 * maskAlpha));
         }
 
-        // Creates warpped masks out of masks created in getMasks to switch places
+        // Creates warpped masks out of masks created in getMasks to switch places.
         private void getWarppedMasks()
         {
             Imgproc.warpAffine(mask_ann, warpped_mask_ann, trans_ann_to_bob, small_frame_size, Imgproc.INTER_NEAREST, Core.BORDER_CONSTANT, new Scalar(0));
             Imgproc.warpAffine(mask_bob, warpped_mask_bob, trans_bob_to_ann, small_frame_size, Imgproc.INTER_NEAREST, Core.BORDER_CONSTANT, new Scalar(0));
         }
 
-        // Returns Mat of refined mask such that warpped mask isn't bigger than original mask
+        // Returns Mat of refined mask such that warpped mask isn't bigger than original mask.
         private Mat getRefinedMasks()
         {
             Core.bitwise_and(mask_ann, warpped_mask_bob, refined_ann_and_bob_warpped);
@@ -494,14 +519,14 @@ namespace OpenCVForUnity.FaceSwap
             return refined_masks;
         }
 
-        // Extracts faces from images based on masks created in getMasks
+        // Extracts faces from images based on masks created in getMasks.
         private void extractFaces()
         {
             small_frame.copyTo(face_ann, mask_ann);
             small_frame.copyTo(face_bob, mask_bob);
         }
 
-        // Creates warpped faces out of faces extracted in extractFaces
+        // Creates warpped faces out of faces extracted in extractFaces.
         private Mat getWarppedFaces()
         {  
             Imgproc.warpAffine(face_ann, warpped_face_ann, trans_ann_to_bob, small_frame_size, Imgproc.INTER_NEAREST, Core.BORDER_CONSTANT, new Scalar(0, 0, 0));
@@ -512,25 +537,8 @@ namespace OpenCVForUnity.FaceSwap
 
             return warpped_faces;
         }
-
-        // Matches Ann face color to Bob face color and vice versa
-        private void colorCorrectFaces()
-        {
-            using (Mat rect_ann_small_frame = new Mat(small_frame, rect_ann))
-            using (Mat rect_ann_warpped_faces = new Mat(warpped_faces, rect_ann))
-            using (Mat rect_ann_warpped_mask_bob = new Mat(warpped_mask_bob, rect_ann))
-            {
-                specifiyHistogram(rect_ann_small_frame, rect_ann_warpped_faces, rect_ann_warpped_mask_bob);
-            }
-            using (Mat rect_bob_small_frame = new Mat(small_frame, rect_bob))
-            using (Mat rect_bob_warpped_faces = new Mat(warpped_faces, rect_bob))
-            using (Mat rect_bob_warpped_mask_ann = new Mat(warpped_mask_ann, rect_bob))
-            {
-                specifiyHistogram(rect_bob_small_frame, rect_bob_warpped_faces, rect_bob_warpped_mask_ann);
-            }
-        }
-
-        // Blurs edges of masks
+            
+        // Blurs edges of masks.
         private void featherMasks()
         {
             using (Mat rect_ann_refined_masks = new Mat(refined_masks, rect_ann))
@@ -543,139 +551,348 @@ namespace OpenCVForUnity.FaceSwap
             }
         }
 
-        // Blurs edges of mask
+        // Blurs edges of mask.
         private void featherMask(Mat refined_masks)
         {
             Imgproc.erode(refined_masks, refined_masks, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, feather_amount), new Point(-1, -1), 1, Core.BORDER_CONSTANT, new Scalar(0));
             Imgproc.blur(refined_masks, refined_masks, feather_amount, new Point(-1, -1), Core.BORDER_CONSTANT);
         }
 
-        // Pastes faces on original frame
-        private void pasteFacesOnFrame()
+        // Pastes faces on original frame.
+        private void AlphaBlend_pixel (Mat fg, Mat bg, Mat alpha, Mat dst)
         {
-            byte[] masks_byte = new byte[refined_masks.total() * refined_masks.elemSize()];
-            Utils.copyFromMat<byte>(refined_masks, masks_byte);
-            byte[] faces_byte = new byte[warpped_faces.total() * warpped_faces.elemSize()];
-            Utils.copyFromMat<byte>(warpped_faces, faces_byte);
-            byte[] frame_byte = new byte[small_frame.total() * small_frame.elemSize()];
-            Utils.copyFromMat<byte>(small_frame, frame_byte);
-            
+            byte[] fg_byte = new byte[fg.total() * fg.channels()];
+            Utils.copyFromMat<byte>(fg, fg_byte);
+            byte[] bg_byte = new byte[bg.total() * bg.channels()];
+            Utils.copyFromMat<byte>(bg, bg_byte);
+            byte[] alpha_byte = new byte[alpha.total() * alpha.channels()];
+            Utils.copyFromMat<byte>(alpha, alpha_byte);
+
             int pixel_i = 0;
-            int elemSize = (int)small_frame.elemSize();
-            int total = (int)small_frame.total();
-            
+            int channels = (int)bg.channels();
+            int total = (int)bg.total();
+
             for (int i = 0; i < total; i++)
             {
-                if (masks_byte[i] != 0)
-                {
-                    frame_byte[pixel_i] = (byte)(((255 - masks_byte[i]) * frame_byte[pixel_i] + masks_byte[i] * faces_byte[pixel_i]) >> 8);
-                    frame_byte[pixel_i + 1] = (byte)(((255 - masks_byte[i]) * frame_byte[pixel_i + 1] + masks_byte[i] * faces_byte[pixel_i + 1]) >> 8);
-                    frame_byte[pixel_i + 2] = (byte)(((255 - masks_byte[i]) * frame_byte[pixel_i + 2] + masks_byte[i] * faces_byte[pixel_i + 2]) >> 8);
+                if (alpha_byte [i] == 0) {
+                } else if (alpha_byte [i] == 255) {
+                    bg_byte [pixel_i] = fg_byte [pixel_i];
+                    bg_byte [pixel_i + 1] = fg_byte [pixel_i + 1];
+                    bg_byte [pixel_i + 2] = fg_byte [pixel_i + 2];
+                } else {
+                    bg_byte [pixel_i] = (byte)(((255 - alpha_byte [i]) * bg_byte [pixel_i] + alpha_byte [i] * fg_byte [pixel_i]) >> 8);
+                    bg_byte [pixel_i + 1] = (byte)(((255 - alpha_byte [i]) * bg_byte [pixel_i + 1] + alpha_byte [i] * fg_byte [pixel_i + 1]) >> 8);
+                    bg_byte [pixel_i + 2] = (byte)(((255 - alpha_byte [i]) * bg_byte [pixel_i + 2] + alpha_byte [i] * fg_byte [pixel_i + 2]) >> 8);
                 }
-                pixel_i += elemSize;
+                pixel_i += channels;
             }
 
-            Utils.copyToMat(frame_byte, small_frame);
+            Utils.copyToMat(bg_byte, dst);
         }
 
-        // Calculates source image histogram and changes target_image to match source hist
-        private void specifiyHistogram(Mat source_image, Mat target_image, Mat mask)
+        List<Mat> channels = new List<Mat> ();
+        Scalar scalar255 = new Scalar (255);
+        // Pastes faces on original frame.
+        private void AlphaBlend_mat (Mat fg, Mat bg, Mat alpha, Mat dst)
         {
-            System.Array.Clear(source_hist_int, 0, source_hist_int.Length);
-            System.Array.Clear(target_hist_int, 0, target_hist_int.Length);
+            using (Mat _alpha = scalar255 - alpha)
+            using (Mat _bg = new Mat())
+            {
+                Core.split (bg, channels);
+                Core.multiply (_alpha, channels[0], channels[0], 1.0/255);
+                Core.multiply (_alpha, channels[1], channels[1], 1.0/255);
+                Core.multiply (_alpha, channels[2], channels[2], 1.0/255);
+                Core.merge (channels, _bg);
 
-            byte[] mask_byte = new byte[mask.total() * mask.elemSize()];
+                using (Mat _fg = new Mat ()) {
+                    Core.split (fg, channels);
+                    Core.multiply (alpha, channels [0], channels [0], 1.0/255);
+                    Core.multiply (alpha, channels [1], channels [1], 1.0/255);
+                    Core.multiply (alpha, channels [2], channels [2], 1.0/255);
+                    Core.merge (channels, _fg);
+
+                    Core.add (_fg, _bg, dst);
+                }
+            }
+        }
+
+
+        Mat sourceMat_c3;
+        Mat targetMat_c3;
+        Mat sourceMatLab;
+        Mat targetMatLab;
+        // Super fast color transfer between images.
+        private void TransferColor_Lab (Mat source, Mat target, Mat mask)
+        {            
+            bool is4chanelColor = false;
+            if (source.channels () == 4) {
+
+                if (sourceMat_c3 == null)
+                    sourceMat_c3 = new Mat ();
+                if (targetMat_c3 == null)
+                    targetMat_c3 = new Mat ();
+
+                is4chanelColor = true;
+                Imgproc.cvtColor (source, sourceMat_c3, Imgproc.COLOR_RGBA2RGB);
+                Imgproc.cvtColor (target, targetMat_c3, Imgproc.COLOR_RGBA2RGB);
+            } else {
+
+                sourceMat_c3 = source;
+                targetMat_c3 = target;
+            }
+
+            if (sourceMatLab == null)
+                sourceMatLab = new Mat ();
+            if (targetMatLab == null)
+                targetMatLab = new Mat ();
+
+            Imgproc.cvtColor (sourceMat_c3, sourceMatLab, Imgproc.COLOR_RGB2Lab);
+            Imgproc.cvtColor (targetMat_c3, targetMatLab, Imgproc.COLOR_RGB2Lab);
+
+            //            sourceMatLab.convertTo (sourceMatLab, CvType.CV_32FC3);
+            //            targetMatLab.convertTo (targetMatLab, CvType.CV_32FC3);
+
+            MatOfDouble labMeanSrc = new MatOfDouble();
+            MatOfDouble labStdSrc = new MatOfDouble();
+            Core.meanStdDev(sourceMatLab, labMeanSrc, labStdSrc, mask);
+
+            MatOfDouble labMeanTar = new MatOfDouble();
+            MatOfDouble labStdTar = new MatOfDouble();
+            Core.meanStdDev(targetMatLab, labMeanTar, labStdTar, mask);
+
+            targetMatLab.convertTo (targetMatLab, CvType.CV_32FC3);
+
+            // subtract the means from the target image
+            double[] labMeanTarArr = labMeanTar.toArray ();
+            Core.subtract (targetMatLab, new Scalar(labMeanTarArr[0], labMeanTarArr[1], labMeanTarArr[2]), targetMatLab);
+
+            // scale by the standard deviations
+            double[] labStdTarArr = labStdTar.toArray ();
+            double[] labStdSrcArr = labStdSrc.toArray ();
+            Scalar scalar = new Scalar (labStdTarArr[0]/labStdSrcArr[0], labStdTarArr[1]/labStdSrcArr[1], labStdTarArr[2]/labStdSrcArr[2]);
+            Core.multiply (targetMatLab, scalar, targetMatLab);
+
+            // add in the source mean
+            double[] labMeanSrcArr = labMeanSrc.toArray ();
+            Core.add (targetMatLab, new Scalar(labMeanSrcArr[0], labMeanSrcArr[1], labMeanSrcArr[2]), targetMatLab);
+
+            // clip the pixel intensities to [0, 255] if they fall outside this range.
+            //Imgproc.threshold (targetMatLab, targetMatLab, 0, 0, Imgproc.THRESH_TOZERO);
+            //Imgproc.threshold (targetMatLab, targetMatLab, 255, 255, Imgproc.THRESH_TRUNC);
+
+            targetMatLab.convertTo (targetMatLab, CvType.CV_8UC3);
+            Imgproc.cvtColor (targetMatLab, targetMat_c3, Imgproc.COLOR_Lab2RGB);
+
+            if (is4chanelColor) {
+                Imgproc.cvtColor(sourceMat_c3, source, Imgproc.COLOR_RGB2RGBA);
+                Imgproc.cvtColor(targetMat_c3, target, Imgproc.COLOR_RGB2RGBA);
+            }
+        }
+
+        Mat sourceMatYCrCb;
+        Mat targetMatYCrCb;
+        // Super fast color transfer between images. (Slightly faster than processing in Lab color format)
+        private void TransferColor_YCrCb  (Mat source, Mat target, Mat mask)
+        {
+            bool is4chanelColor = false;
+            if (source.channels () == 4) {
+
+                if (sourceMat_c3 == null)
+                    sourceMat_c3 = new Mat ();
+                if (targetMat_c3 == null)
+                    targetMat_c3 = new Mat ();
+
+                is4chanelColor = true;
+                Imgproc.cvtColor (source, sourceMat_c3, Imgproc.COLOR_RGBA2RGB);
+                Imgproc.cvtColor (target, targetMat_c3, Imgproc.COLOR_RGBA2RGB);
+            } else {
+
+                sourceMat_c3 = source;
+                targetMat_c3 = target;
+            }
+
+            if (sourceMatYCrCb == null)
+                sourceMatYCrCb = new Mat ();
+            if (targetMatYCrCb == null)
+                targetMatYCrCb = new Mat ();
+
+            Imgproc.cvtColor (sourceMat_c3, sourceMatYCrCb, Imgproc.COLOR_RGB2YCrCb);
+            Imgproc.cvtColor (targetMat_c3, targetMatYCrCb, Imgproc.COLOR_RGB2YCrCb);
+
+            MatOfDouble labMeanSrc = new MatOfDouble();
+            MatOfDouble labStdSrc = new MatOfDouble();
+            Core.meanStdDev(sourceMatYCrCb, labMeanSrc, labStdSrc, mask);
+
+            MatOfDouble labMeanTar = new MatOfDouble();
+            MatOfDouble labStdTar = new MatOfDouble();
+            Core.meanStdDev (targetMatYCrCb, labMeanTar, labStdTar, mask);
+
+            targetMatYCrCb.convertTo (targetMatYCrCb, CvType.CV_32FC3);
+
+            // subtract the means from the target image
+            double[] labMeanTarArr = labMeanTar.toArray ();
+            Core.subtract (targetMatYCrCb, new Scalar(labMeanTarArr[0], labMeanTarArr[1], labMeanTarArr[2]), targetMatYCrCb);
+
+            // scale by the standard deviations
+            double[] labStdTarArr = labStdTar.toArray ();
+            double[] labStdSrcArr = labStdSrc.toArray ();
+            Scalar scalar = new Scalar (labStdTarArr[0]/labStdSrcArr[0], labStdTarArr[1]/labStdSrcArr[1], labStdTarArr[2]/labStdSrcArr[2]);
+            Core.multiply (targetMatYCrCb, scalar, targetMatYCrCb);
+
+            // add in the source mean
+            double[] labMeanSrcArr = labMeanSrc.toArray ();
+            Core.add (targetMatYCrCb, new Scalar(labMeanSrcArr[0], labMeanSrcArr[1], labMeanSrcArr[2]), targetMatYCrCb);
+
+            // clip the pixel intensities to [0, 255] if they fall outside this range.
+            //Imgproc.threshold (targetMatYCrCb, targetMatYCrCb, 0, 0, Imgproc.THRESH_TOZERO);
+            //Imgproc.threshold (targetMatYCrCb, targetMatYCrCb, 255, 255, Imgproc.THRESH_TRUNC);
+
+            targetMatYCrCb.convertTo (targetMatYCrCb, CvType.CV_8UC3);
+            Imgproc.cvtColor (targetMatYCrCb, targetMat_c3, Imgproc.COLOR_YCrCb2RGB);
+
+            if (is4chanelColor) {
+                Imgproc.cvtColor(targetMat_c3, target, Imgproc.COLOR_RGB2RGBA);
+            }
+        }
+
+        // Calculates source image histogram and changes target_image to match source hist.
+        private void specifyHistogram (Mat source_image, Mat target_image, Mat mask)
+        {
+            byte[][] LUT = new byte[3][]; for(int i=0; i<LUT.Length; i++ ){ LUT[i] = new byte[256];}
+            double[][] source_hist = new double[3][]; for(int i=0; i<source_hist.Length; i++ ){ source_hist[i] = new double[256];}
+            double[][] target_hist = new double[3][]; for(int i=0; i<target_hist.Length; i++ ){ target_hist[i] = new double[256];}
+            double[][] source_cdf = new double[3][]; for(int i=0; i<source_cdf.Length; i++ ){ source_cdf[i] = new double[256];}
+            double[][] target_cdf = new double[3][]; for(int i=0; i<target_cdf.Length; i++ ){ target_cdf[i] = new double[256];}
+
+            double[] source_histMax = new double[3];
+            double[] target_histMax = new double[3];
+
+            byte[] mask_byte = new byte[mask.total() * mask.channels()];
             Utils.copyFromMat<byte>(mask, mask_byte);
-            byte[] source_image_byte = new byte[source_image.total() * source_image.elemSize()];
+            byte[] source_image_byte = new byte[source_image.total() * source_image.channels()];
             Utils.copyFromMat<byte>(source_image, source_image_byte);
-            byte[] target_image_byte = new byte[target_image.total() * target_image.elemSize()];
+            byte[] target_image_byte = new byte[target_image.total() * target_image.channels()];
             Utils.copyFromMat<byte>(target_image, target_image_byte);
 
             int pixel_i = 0;
-			int elemSize = (int)source_image.elemSize();
-            int total = (int)mask.total();
+            int channels = (int)source_image.channels();
+            int total = (int)source_image.total();
             for (int i = 0; i < total; i++)
             {
                 if (mask_byte[i] != 0)
                 {
-                    source_hist_int[0, source_image_byte[pixel_i]]++;
-                    source_hist_int[1, source_image_byte[pixel_i + 1]]++;
-                    source_hist_int[2, source_image_byte[pixel_i + 2]]++;
+                    byte c = source_image_byte [pixel_i];
+                    source_hist [0][c]++;
+                    if (source_hist [0][c] > source_histMax[0])
+                        source_histMax[0] = source_hist [0][c];
 
-                    target_hist_int[0, target_image_byte[pixel_i]]++;
-                    target_hist_int[1, target_image_byte[pixel_i + 1]]++;
-                    target_hist_int[2, target_image_byte[pixel_i + 2]]++;
+                    c = source_image_byte [pixel_i + 1];
+                    source_hist [1][c]++;
+                    if (source_hist [1][c] > source_histMax[1])
+                        source_histMax[1] = source_hist [1][c];
+
+                    c = source_image_byte [pixel_i + 2];
+                    source_hist [2][c]++;
+                    if (source_hist [2][c] > source_histMax[2])
+                        source_histMax[2] = source_hist [2][c];
+
+                    c = target_image_byte [pixel_i];
+                    target_hist [0][c]++;
+                    if (target_hist [0][c] > target_histMax[0])
+                        target_histMax[0] = target_hist [0][c];
+
+                    c = target_image_byte [pixel_i + 1];
+                    target_hist [1][c]++;
+                    if (target_hist [1][c] > target_histMax[1])
+                        target_histMax[1] = target_hist [1][c];
+
+                    c = target_image_byte [pixel_i + 2];
+                    target_hist [2][c]++;
+                    if (target_hist [2][c] > target_histMax[2])
+                        target_histMax[2] = target_hist [2][c];
                 }
                 // Advance to next pixel
-                pixel_i += elemSize;
+                pixel_i += channels;
             }
 
-            // Calc CDF
+            // Normalize hist
+            for (int i = 0; i < 256; i++) {
+                source_hist [0][i] /= source_histMax[0];
+                source_hist [1][i] /= source_histMax[1];
+                source_hist [2][i] /= source_histMax[2];
+
+                target_hist [0][i] /= target_histMax[0];
+                target_hist [1][i] /= target_histMax[1];
+                target_hist [2][i] /= target_histMax[2];
+            }
+
+            // Calc cumulative distribution function (CDF) 
+            source_cdf[0][0] = source_hist[0][0];
+            source_cdf[1][0] = source_hist[1][0];
+            source_cdf[2][0] = source_hist[2][0];
+            target_cdf[0][0] = target_hist[0][0];
+            target_cdf[1][0] = target_hist[1][0];
+            target_cdf[2][0] = target_hist[2][0];
             for (int i = 1; i < 256; i++)
             {
-                source_hist_int[0, i] += source_hist_int[0, i - 1];
-                source_hist_int[1, i] += source_hist_int[1, i - 1];
-                source_hist_int[2, i] += source_hist_int[2, i - 1];
+                source_cdf[0][i] = source_cdf[0][i - 1] + source_hist[0][i];
+                source_cdf[1][i] = source_cdf[1][i - 1] + source_hist[1][i];
+                source_cdf[2][i] = source_cdf[2][i - 1] + source_hist[2][i];
 
-                target_hist_int[0, i] += target_hist_int[0, i - 1];
-                target_hist_int[1, i] += target_hist_int[1, i - 1];
-                target_hist_int[2, i] += target_hist_int[2, i - 1];
+                target_cdf[0][i] = target_cdf[0][i - 1] + target_hist[0][i];
+                target_cdf[1][i] = target_cdf[1][i - 1] + target_hist[1][i];
+                target_cdf[2][i] = target_cdf[2][i - 1] + target_hist[2][i];
             }
 
             // Normalize CDF
             for (int i = 0; i < 256; i++)
             {
-                source_histogram[0, i] = (source_hist_int[0, i] != 0) ? (float)source_hist_int[0, i] / source_hist_int[0, 255] : 0;
-                source_histogram[1, i] = (source_hist_int[1, i] != 0) ? (float)source_hist_int[1, i] / source_hist_int[1, 255] : 0;
-                source_histogram[2, i] = (source_hist_int[2, i] != 0) ? (float)source_hist_int[2, i] / source_hist_int[2, 255] : 0;
+                source_cdf[0][i] /= source_cdf[0][255];
+                source_cdf[1][i] /= source_cdf[1][255];
+                source_cdf[2][i] /= source_cdf[2][255];
 
-                target_histogram[0, i] = (target_hist_int[0, i] != 0) ? (float)target_hist_int[0, i] / target_hist_int[0, 255] : 0;
-                target_histogram[1, i] = (target_hist_int[1, i] != 0) ? (float)target_hist_int[1, i] / target_hist_int[1, 255] : 0;
-                target_histogram[2, i] = (target_hist_int[2, i] != 0) ? (float)target_hist_int[2, i] / target_hist_int[2, 255] : 0;
+                target_cdf[0][i] /= target_cdf[0][255];
+                target_cdf[1][i] /= target_cdf[1][255];
+                target_cdf[2][i] /= target_cdf[2][255];
             }
 
-            // Create lookup table
-            for (int i = 0; i < 256; i++)
-            {
-                LUT[0, i] = binary_search(target_histogram[0, i], source_histogram, 0);
-                LUT[1, i] = binary_search(target_histogram[1, i], source_histogram, 1);
-                LUT[2, i] = binary_search(target_histogram[2, i], source_histogram, 2);
+            // Create lookup table (LUT)
+            const double HISTMATCH_EPSILON = 0.000001f;
+            for (int i = 0; i < 3; i++) {
+                int last = 0;
+                for (int j = 0; j < 256; j++) {
+                    double F1j = target_cdf [i][j];
+
+                    for (int k = last; k < 256; k++) {
+                        double F2k = source_cdf [i][k];
+                        if (Math.Abs (F2k - F1j) < HISTMATCH_EPSILON || F2k > F1j) {
+                            LUT [i][j] = (byte)k;
+                            last = k;
+                            break;
+                        }
+                    }
+                }
             }
 
-            // repaint pixels
+            // Repaint pixels
             pixel_i = 0;
             for (int i = 0; i < total; i++)
             {
                 if (mask_byte[i] != 0)
                 {
-                    target_image_byte[pixel_i] = LUT[0, target_image_byte[pixel_i]];
-                    target_image_byte[pixel_i + 1] = LUT[1, target_image_byte[pixel_i + 1]];
-                    target_image_byte[pixel_i + 2] = LUT[2, target_image_byte[pixel_i + 2]];
+                    target_image_byte[pixel_i] = LUT[0][target_image_byte[pixel_i]];
+                    target_image_byte[pixel_i + 1] = LUT[1][target_image_byte[pixel_i + 1]];
+                    target_image_byte[pixel_i + 2] = LUT[2][target_image_byte[pixel_i + 2]];
                 }
                 // Advance to next pixel
-                pixel_i += elemSize;
+                pixel_i += channels;
             }
 
             Utils.copyToMat(target_image_byte, target_image);
         }
 
-        private byte binary_search(float needle, float[,] haystack, int haystack_index)
-        {
-            byte l = 0, r = 255, m = 0;
-            while (l < r)
-            {
-                m = (byte)((l + r) / 2);
-                if (needle > haystack[haystack_index, m])
-                    l = (byte)(m + 1);
-                else
-                    r = (byte)(m - 1);
-            }
-            // TODO check closest value
-            return m;
-        }
 
-
-        // Pastes faces on original frame using SeamlessClone
+        // Pastes faces on original frame using SeamlessClone.
         private void pasteFacesOnFrameUsingSeamlessClone(Mat full_frame)
         {
             //Processing to avoid the problem that synthesis is shifted.
@@ -734,6 +951,41 @@ namespace OpenCVForUnity.FaceSwap
             {
                 frame_c3.Dispose();
                 frame_c3 = null;
+            }
+
+            foreach(var c in channels){
+                c.Dispose ();
+            }
+            channels.Clear ();
+            if (sourceMat_c3 != null)
+            {
+                sourceMat_c3.Dispose();
+                sourceMat_c3 = null;
+            }
+            if (targetMat_c3 != null)
+            {
+                targetMat_c3.Dispose();
+                targetMat_c3 = null;
+            }
+            if (sourceMatLab != null)
+            {
+                sourceMatLab.Dispose();
+                sourceMatLab = null;
+            }
+            if (targetMatLab != null)
+            {
+                targetMatLab.Dispose();
+                targetMatLab = null;
+            }
+            if (sourceMatYCrCb != null)
+            {
+                sourceMatYCrCb.Dispose();
+                sourceMatYCrCb = null;
+            }
+            if (targetMatYCrCb != null)
+            {
+                targetMatYCrCb.Dispose();
+                targetMatYCrCb = null;
             }
         }
     }

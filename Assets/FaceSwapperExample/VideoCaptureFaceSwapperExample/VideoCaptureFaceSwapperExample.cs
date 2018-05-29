@@ -28,16 +28,6 @@ namespace FaceSwapperExample
         /// The use dlib face detecter toggle.
         /// </summary>
         public Toggle useDlibFaceDetecterToggle;
-        
-        /// <summary>
-        /// Determines if enables tracking.
-        /// </summary>
-        public bool enableTracking = true;
-        
-        /// <summary>
-        /// The enable tracking toggle.
-        /// </summary>
-        public Toggle enableTrackingToggle;
 
         /// <summary>
         /// Determines if filters non frontal faces.
@@ -54,6 +44,16 @@ namespace FaceSwapperExample
         /// </summary>
         [Range (0.0f, 1.0f)]
         public float frontalFaceRateLowerLimit;
+
+        /// <summary>
+        /// Determines if enables noise filter.
+        /// </summary>
+        public bool enableNoiseFilter = true;
+
+        /// <summary>
+        /// The enable noise filter toggle.
+        /// </summary>
+        public Toggle enableNoiseFilterToggle;
         
         /// <summary>
         /// Determines if uses the seamless clone method for the face copy.
@@ -124,6 +124,16 @@ namespace FaceSwapperExample
         /// The face landmark detector.
         /// </summary>
         FaceLandmarkDetector faceLandmarkDetector;
+
+        /// <summary>
+        /// The mean points filter dictionary.
+        /// </summary>
+        Dictionary<int, LowPassPointsFilter> lowPassFilterDict;
+
+        /// <summary>
+        /// The optical flow points filter dictionary.
+        /// </summary>
+        Dictionary<int, OFPointsFilter> opticalFlowFilterDict;
 
         /// <summary>
         /// The face Swapper.
@@ -211,6 +221,9 @@ namespace FaceSwapperExample
 
             faceLandmarkDetector = new FaceLandmarkDetector (sp_human_face_68_dat_filepath);
 
+            lowPassFilterDict = new Dictionary<int, LowPassPointsFilter> ();
+            opticalFlowFilterDict = new Dictionary<int, OFPointsFilter> ();
+
             faceSwapper = new DlibFaceSwapper ();
             faceSwapper.useSeamlessCloneForPasteFaces = useSeamlessClone;
             faceSwapper.isShowingDebugFacePoints = displayDebugFacePoints;
@@ -237,7 +250,7 @@ namespace FaceSwapperExample
             Debug.Log ("CAP_PROP_FRAME_HEIGHT: " + capture.get (Videoio.CAP_PROP_FRAME_HEIGHT));
 
 
-            texture = new Texture2D ((int)(frameWidth), (int)(frameHeight), TextureFormat.RGBA32, false);
+            texture = new Texture2D ((int)(frameWidth), (int)(frameHeight), TextureFormat.RGB24, false);
             gameObject.transform.localScale = new Vector3 ((float)frameWidth, (float)frameHeight, 1);
             float widthScale = (float)Screen.width / (float)frameWidth;
             float heightScale = (float)Screen.height / (float)frameHeight;
@@ -258,9 +271,9 @@ namespace FaceSwapperExample
 
             displayFaceRectsToggle.isOn = displayFaceRects;
             useDlibFaceDetecterToggle.isOn = useDlibFaceDetecter;
+            enableNoiseFilterToggle.isOn = enableNoiseFilter;
             filterNonFrontalFacesToggle.isOn = filterNonFrontalFaces;
             useSeamlessCloneToggle.isOn = useSeamlessClone;
-            enableTrackingToggle.isOn = enableTracking;
             displayDebugFacePointsToggle.isOn = displayDebugFacePoints;
         }
 
@@ -307,30 +320,56 @@ namespace FaceSwapperExample
                             r.y += (int)(r.height * 0.1f);
                         }
                     }
-                }
+                }                    
 
-                // face traking.
-                if (enableTracking) {
-                    rectangleTracker.UpdateTrackedObjects (detectResult);
-                    detectResult = new List<OpenCVForUnity.Rect> ();
-                    rectangleTracker.GetObjects (detectResult, true);
+                // face tracking.
+                List<TrackedRect> trackedRects = new List<TrackedRect> ();
+                rectangleTracker.UpdateTrackedObjects (detectResult);
+                rectangleTracker.GetObjects (trackedRects, true);
+
+                // create noise filter.
+                foreach (var openCVRect in trackedRects) {
+                    if (openCVRect.state == TrackedState.NEW) {
+                        if (!lowPassFilterDict.ContainsKey(openCVRect.id))
+                            lowPassFilterDict.Add (openCVRect.id, new LowPassPointsFilter((int)faceLandmarkDetector.GetShapePredictorNumParts()));
+                        if (!opticalFlowFilterDict.ContainsKey(openCVRect.id))
+                            opticalFlowFilterDict.Add (openCVRect.id, new OFPointsFilter((int)faceLandmarkDetector.GetShapePredictorNumParts()));
+                    }else if (openCVRect.state == TrackedState.DELETED){
+                        if (lowPassFilterDict.ContainsKey (openCVRect.id)) {
+                            lowPassFilterDict [openCVRect.id].Dispose ();
+                            lowPassFilterDict.Remove (openCVRect.id);
+                        }
+                        if (opticalFlowFilterDict.ContainsKey (openCVRect.id)) {
+                            opticalFlowFilterDict [openCVRect.id].Dispose ();
+                            opticalFlowFilterDict.Remove (openCVRect.id);
+                        }
+                    }
                 }
 
                 // detect face landmark points.
                 OpenCVForUnityUtils.SetImage (faceLandmarkDetector, rgbMat);
                 List<List<Vector2>> landmarkPoints = new List<List<Vector2>> ();
-                foreach (var openCVRect in detectResult) {
-                    UnityEngine.Rect rect = new UnityEngine.Rect (openCVRect.x, openCVRect.y, openCVRect.width, openCVRect.height);
+                foreach (var openCVRect in trackedRects) {
+                    if (openCVRect.state > TrackedState.NEW_DISPLAYED && openCVRect.state < TrackedState.NEW_HIDED) {
 
-                    List<Vector2> points = faceLandmarkDetector.DetectLandmark (rect);
-                    landmarkPoints.Add (points);
+                        UnityEngine.Rect rect = new UnityEngine.Rect (openCVRect.x, openCVRect.y, openCVRect.width, openCVRect.height);
+                        List<Vector2> points = faceLandmarkDetector.DetectLandmark (rect);
+
+                        // apply noise filter.
+                        if (enableNoiseFilter) {
+                            opticalFlowFilterDict[openCVRect.id].Process (rgbMat, points, points);
+                            lowPassFilterDict[openCVRect.id].Process (rgbMat, points, points);
+                        }
+
+                        landmarkPoints.Add (points);
+                    }
                 }
 
                 // filter non frontal faces.
                 if (filterNonFrontalFaces) {
                     for (int i = 0; i < landmarkPoints.Count; i++) {
                         if (frontalFaceChecker.GetFrontalFaceRate (landmarkPoints [i]) < frontalFaceRateLowerLimit) {
-                            detectResult.RemoveAt (i);
+                            trackedRects.RemoveAt (i);
                             landmarkPoints.RemoveAt (i);
                             i--;
                         }
@@ -350,17 +389,17 @@ namespace FaceSwapperExample
 
                 // draw face rects.
                 if (displayFaceRects) {
-                    for (int i = 0; i < detectResult.Count; i++) {
-                        UnityEngine.Rect rect = new UnityEngine.Rect (detectResult [i].x, detectResult [i].y, detectResult [i].width, detectResult [i].height);
+                    for (int i = 0; i < trackedRects.Count; i++) {
+                        OpenCVForUnity.Rect openCVRect = trackedRects[i];
+                        UnityEngine.Rect rect = new UnityEngine.Rect (openCVRect.x, openCVRect.y, openCVRect.width, openCVRect.height);
                         OpenCVForUnityUtils.DrawFaceRect (rgbMat, rect, new Scalar (255, 0, 0, 255), 2);
                         //Imgproc.putText (rgbMat, " " + frontalFaceParam.getFrontalFaceRate (landmarkPoints [i]), new Point (rect.xMin, rect.yMin - 10), Core.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255), 2, Imgproc.LINE_AA, false);
                     }
                 }
-                    
-                Imgproc.putText (rgbMat, "W:" + rgbMat.width () + " H:" + rgbMat.height () + " SO:" + Screen.orientation, new Point (5, rgbMat.rows () - 10), Core.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255), 1, Imgproc.LINE_AA, false);
 
-                OpenCVForUnity.Utils.matToTexture2D (rgbMat, texture);
+//                Imgproc.putText (rgbMat, "W:" + rgbMat.width () + " H:" + rgbMat.height () + " SO:" + Screen.orientation, new Point (5, rgbMat.rows () - 10), Core.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255), 1, Imgproc.LINE_AA, false);
 
+                OpenCVForUnity.Utils.fastMatToTexture2D (rgbMat, texture);
             }
         }
 
@@ -381,6 +420,15 @@ namespace FaceSwapperExample
 
             if (faceLandmarkDetector != null)
                 faceLandmarkDetector.Dispose ();
+
+            foreach (var key in lowPassFilterDict.Keys) {
+                lowPassFilterDict [key].Dispose ();
+            }
+            lowPassFilterDict.Clear ();
+            foreach (var key in opticalFlowFilterDict.Keys) {
+                opticalFlowFilterDict [key].Dispose ();
+            }
+            opticalFlowFilterDict.Clear ();
 
             if (faceSwapper != null)
                 faceSwapper.Dispose ();
@@ -421,14 +469,20 @@ namespace FaceSwapperExample
         }
 
         /// <summary>
-        /// Raises the enable tracking toggle value changed event.
+        /// Raises the enable noise filter toggle value changed event.
         /// </summary>
-        public void OnEnableTrackingToggleValueChanged ()
+        public void OnEnableNoiseFilterToggleValueChanged ()
         {
-            if (enableTrackingToggle.isOn) {
-                enableTracking = true;
+            if (enableNoiseFilterToggle.isOn) {
+                enableNoiseFilter = true;
+                foreach (var key in lowPassFilterDict.Keys) {
+                    lowPassFilterDict [key].Reset ();
+                }
+                foreach (var key in opticalFlowFilterDict.Keys) {
+                    opticalFlowFilterDict [key].Reset ();
+                }
             } else {
-                enableTracking = false;
+                enableNoiseFilter = false;
             }
         }
 

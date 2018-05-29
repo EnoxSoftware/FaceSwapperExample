@@ -32,19 +32,9 @@ namespace FaceSwapperExample
         public Toggle useDlibFaceDetecterToggle;
 
         /// <summary>
-        /// Determines if enables tracking.
-        /// </summary>
-        public bool enableTracking = true;
-        
-        /// <summary>
-        /// The enable tracking toggle.
-        /// </summary>
-        public Toggle enableTrackingToggle;
-
-        /// <summary>
         /// Determines if filters non frontal faces.
         /// </summary>
-        public bool filterNonFrontalFaces;
+        public bool filterNonFrontalFaces = false;
         
         /// <summary>
         /// The filter non frontal faces toggle.
@@ -56,6 +46,16 @@ namespace FaceSwapperExample
         /// </summary>
         [Range (0.0f, 1.0f)]
         public float frontalFaceRateLowerLimit;
+
+        /// <summary>
+        /// Determines if enables noise filter.
+        /// </summary>
+        public bool enableNoiseFilter = true;
+
+        /// <summary>
+        /// The enable noise filter toggle.
+        /// </summary>
+        public Toggle enableNoiseFilterToggle;
 
         /// <summary>
         /// Determines if displays face rects.
@@ -83,11 +83,6 @@ namespace FaceSwapperExample
         public Button uploadFaceMaskButton;
 
         /// <summary>
-        /// The colors.
-        /// </summary>
-        Color32[] colors;
-
-        /// <summary>
         /// The gray mat.
         /// </summary>
         Mat grayMat;
@@ -111,6 +106,17 @@ namespace FaceSwapperExample
         /// The face landmark detector.
         /// </summary>
         FaceLandmarkDetector faceLandmarkDetector;
+
+        /// <summary>
+        /// The mean points filter dictionary.
+        /// </summary>
+        Dictionary<int, LowPassPointsFilter> lowPassFilterDict;
+
+        /// <summary>
+        /// The optical flow points filter dictionary.
+        /// </summary>
+        Dictionary<int, OFPointsFilter> opticalFlowFilterDict;
+
         /// <summary>
         /// The face Changer
         /// </summary>
@@ -151,6 +157,15 @@ namespace FaceSwapperExample
         /// </summary>
         string sp_human_face_68_dat_filepath;
 
+        /// <summary>
+        /// The FPS monitor.
+        /// </summary>
+        FpsMonitor fpsMonitor;
+
+        #if UNITY_ANDROID && !UNITY_EDITOR
+        float rearCameraRequestedFPS;
+        #endif
+
         #if UNITY_WEBGL && !UNITY_EDITOR
         Stack<IEnumerator> coroutines = new Stack<IEnumerator> ();
         #endif
@@ -158,6 +173,8 @@ namespace FaceSwapperExample
         // Use this for initialization
         void Start ()
         {
+            fpsMonitor = GetComponent<FpsMonitor> ();
+
             webCamTextureToMatHelper = gameObject.GetComponent<WebCamTextureToMatHelper> ();
 
             #if UNITY_WEBGL && !UNITY_EDITOR
@@ -199,15 +216,31 @@ namespace FaceSwapperExample
 
             faceLandmarkDetector = new FaceLandmarkDetector (sp_human_face_68_dat_filepath);
 
+            lowPassFilterDict = new Dictionary<int, LowPassPointsFilter> ();
+            opticalFlowFilterDict = new Dictionary<int, OFPointsFilter> ();
+
             faceChanger = new DlibFaceChanger ();
             faceChanger.isShowingDebugFacePoints = displayDebugFacePoints;
 
+            #if UNITY_ANDROID && !UNITY_EDITOR
+            // Set the requestedFPS parameter to avoid the problem of the WebCamTexture image becoming low light on some Android devices. (Pixel, pixel 2)
+            // https://forum.unity.com/threads/android-webcamtexture-in-low-light-only-some-models.520656/
+            // https://forum.unity.com/threads/released-opencv-for-unity.277080/page-33#post-3445178
+            rearCameraRequestedFPS = webCamTextureToMatHelper.requestedFPS;
+            if (webCamTextureToMatHelper.requestedIsFrontFacing) {                
+                webCamTextureToMatHelper.requestedFPS = 15;
+                webCamTextureToMatHelper.Initialize ();
+            } else {
+                webCamTextureToMatHelper.Initialize ();
+            }
+            #else
             webCamTextureToMatHelper.Initialize ();
+            #endif
 
             displayFaceRectsToggle.isOn = displayFaceRects;
             useDlibFaceDetecterToggle.isOn = useDlibFaceDetecter;
+            enableNoiseFilterToggle.isOn = enableNoiseFilter;
             filterNonFrontalFacesToggle.isOn = filterNonFrontalFaces;
-            enableTrackingToggle.isOn = enableTracking;
             displayDebugFacePointsToggle.isOn = displayDebugFacePoints;
         }
 
@@ -220,12 +253,18 @@ namespace FaceSwapperExample
 
             Mat webCamTextureMat = webCamTextureToMatHelper.GetMat ();
 
-            colors = new Color32[webCamTextureMat.cols () * webCamTextureMat.rows ()];
             texture = new Texture2D (webCamTextureMat.cols (), webCamTextureMat.rows (), TextureFormat.RGBA32, false);
 
 
             gameObject.transform.localScale = new Vector3 (webCamTextureMat.cols (), webCamTextureMat.rows (), 1);
             Debug.Log ("Screen.width " + Screen.width + " Screen.height " + Screen.height + " Screen.orientation " + Screen.orientation);
+
+            if (fpsMonitor != null){
+                fpsMonitor.Add ("width", webCamTextureMat.width ().ToString());
+                fpsMonitor.Add ("height", webCamTextureMat.height ().ToString());
+                fpsMonitor.Add ("orientation", Screen.orientation.ToString());
+            }
+
 
             float width = gameObject.transform.localScale.x;
             float height = gameObject.transform.localScale.y;
@@ -258,7 +297,21 @@ namespace FaceSwapperExample
 
             grayMat.Dispose ();
 
+            if (texture != null) {
+                Texture2D.Destroy(texture);
+                texture = null;
+            }
+
             rectangleTracker.Reset ();
+
+            foreach (var key in lowPassFilterDict.Keys) {
+                lowPassFilterDict [key].Dispose ();
+            }
+            lowPassFilterDict.Clear ();
+            foreach (var key in opticalFlowFilterDict.Keys) {
+                opticalFlowFilterDict [key].Dispose ();
+            }
+            opticalFlowFilterDict.Clear ();
 
             frontalFaceChecker.Dispose ();
         }
@@ -280,91 +333,70 @@ namespace FaceSwapperExample
                 Mat rgbaMat = webCamTextureToMatHelper.GetMat ();
 
                 // detect faces.
-                List<OpenCVForUnity.Rect> detectResult = new List<OpenCVForUnity.Rect> ();
-                if (useDlibFaceDetecter) {
-                    OpenCVForUnityUtils.SetImage (faceLandmarkDetector, rgbaMat);
-                    List<UnityEngine.Rect> result = faceLandmarkDetector.Detect ();
+                List<OpenCVForUnity.Rect> detectResult;
+                DetectFaces (rgbaMat,  out detectResult, useDlibFaceDetecter);
+          
+                // face tracking.
+                List<TrackedRect> trackedRects = new List<TrackedRect> ();
+                rectangleTracker.UpdateTrackedObjects (detectResult);
+                rectangleTracker.GetObjects (trackedRects, true);
 
-                    foreach (var unityRect in result) {
-                        detectResult.Add (new OpenCVForUnity.Rect ((int)unityRect.x, (int)unityRect.y, (int)unityRect.width, (int)unityRect.height));
-                    }
-                } else {
-                    // convert image to greyscale.
-                    Imgproc.cvtColor (rgbaMat, grayMat, Imgproc.COLOR_RGBA2GRAY);
-
-                    using (Mat equalizeHistMat = new Mat ())
-                    using (MatOfRect faces = new MatOfRect ()) {
-                        Imgproc.equalizeHist (grayMat, equalizeHistMat);
-
-                        cascade.detectMultiScale (equalizeHistMat, faces, 1.1f, 2, 0 | Objdetect.CASCADE_SCALE_IMAGE, new OpenCVForUnity.Size (equalizeHistMat.cols () * 0.15, equalizeHistMat.cols () * 0.15), new Size ());
-
-                        detectResult = faces.toList ();
-
-                        // adjust to Dilb's result.
-                        foreach (OpenCVForUnity.Rect r in detectResult) {
-                            r.y += (int)(r.height * 0.1f);
+                // create noise filter.
+                foreach (var openCVRect in trackedRects) {
+                    if (openCVRect.state == TrackedState.NEW) {
+                        if (!lowPassFilterDict.ContainsKey (openCVRect.id))
+                            lowPassFilterDict.Add (openCVRect.id, new LowPassPointsFilter ((int)faceLandmarkDetector.GetShapePredictorNumParts ()));
+                        if (!opticalFlowFilterDict.ContainsKey(openCVRect.id))
+                            opticalFlowFilterDict.Add (openCVRect.id, new OFPointsFilter((int)faceLandmarkDetector.GetShapePredictorNumParts()));
+                    }else if (openCVRect.state == TrackedState.DELETED){
+                        if (lowPassFilterDict.ContainsKey (openCVRect.id)) {
+                            lowPassFilterDict [openCVRect.id].Dispose ();
+                            lowPassFilterDict.Remove (openCVRect.id);
+                        }
+                        if (opticalFlowFilterDict.ContainsKey (openCVRect.id)) {
+                            opticalFlowFilterDict [openCVRect.id].Dispose ();
+                            opticalFlowFilterDict.Remove (openCVRect.id);
                         }
                     }
-                }
-
-                // face traking.
-                if (enableTracking) {
-                    rectangleTracker.UpdateTrackedObjects (detectResult);
-                    detectResult = new List<OpenCVForUnity.Rect> ();
-                    rectangleTracker.GetObjects (detectResult, true);
                 }
 
                 // detect face landmark points.
                 OpenCVForUnityUtils.SetImage (faceLandmarkDetector, rgbaMat);
                 List<List<Vector2>> landmarkPoints = new List<List<Vector2>> ();
-                foreach (var openCVRect in detectResult) {
-                    UnityEngine.Rect rect = new UnityEngine.Rect (openCVRect.x, openCVRect.y, openCVRect.width, openCVRect.height);
+                foreach (var openCVRect in trackedRects) {
+                    if (openCVRect.state > TrackedState.NEW_DISPLAYED && openCVRect.state < TrackedState.NEW_HIDED) {
 
-                    List<Vector2> points = faceLandmarkDetector.DetectLandmark (rect);
-                    landmarkPoints.Add (points);
+                        UnityEngine.Rect rect = new UnityEngine.Rect (openCVRect.x, openCVRect.y, openCVRect.width, openCVRect.height);
+                        List<Vector2> points = faceLandmarkDetector.DetectLandmark (rect);
+
+                        // apply noise filter.
+                        if (enableNoiseFilter) {
+                            opticalFlowFilterDict[openCVRect.id].Process (rgbaMat, points, points);
+                            lowPassFilterDict[openCVRect.id].Process (rgbaMat, points, points);
+                        }
+
+                        landmarkPoints.Add (points);
+                    }
                 }
 
                 // filter non frontal faces.
                 if (filterNonFrontalFaces) {
                     for (int i = 0; i < landmarkPoints.Count; i++) {
                         if (frontalFaceChecker.GetFrontalFaceRate (landmarkPoints [i]) < frontalFaceRateLowerLimit) {
-                            detectResult.RemoveAt (i);
+                            trackedRects.RemoveAt (i);
                             landmarkPoints.RemoveAt (i);
                             i--;
                         }
                     }
                 }
 
-                // face changeing.
-                if (faceMaskTexture != null && landmarkPoints.Count >= 1) {
-
-                    OpenCVForUnity.Utils.texture2DToMat (faceMaskTexture, faceMaskMat);
+                // face changing.
+                if (faceMaskTexture != null && landmarkPoints.Count >= 1) { // Apply face changing between detected faces and a mask image.
 
                     if (detectedFaceRect.width == 0.0f || detectedFaceRect.height == 0.0f) {
-                        if (useDlibFaceDetecter) {
-                            OpenCVForUnityUtils.SetImage (faceLandmarkDetector, faceMaskMat);
-                            List<UnityEngine.Rect> result = faceLandmarkDetector.Detect ();
-                            if (result.Count >= 1)
-                                detectedFaceRect = result [0];
-                        } else {
-                        
-                            using (Mat grayMat = new Mat ())
-                            using (Mat equalizeHistMat = new Mat ())
-                            using (MatOfRect faces = new MatOfRect ()) {
-                                //convert image to greyscale
-                                Imgproc.cvtColor (faceMaskMat, grayMat, Imgproc.COLOR_RGBA2GRAY);
-                                Imgproc.equalizeHist (grayMat, equalizeHistMat);
-
-                                cascade.detectMultiScale (equalizeHistMat, faces, 1.1f, 2, 0 | Objdetect.CASCADE_SCALE_IMAGE, new OpenCVForUnity.Size (equalizeHistMat.cols () * 0.15, equalizeHistMat.cols () * 0.15), new Size ());
-
-                                //detectResult = faces.toList ();
-                                List<OpenCVForUnity.Rect> faceList = faces.toList ();
-                                if (faceList.Count >= 1) {
-                                    detectedFaceRect = new UnityEngine.Rect (faceList [0].x, faceList [0].y, faceList [0].width, faceList [0].height);
-                                    // Adjust to Dilb's result.
-                                    detectedFaceRect.y += detectedFaceRect.height * 0.1f;
-                                }
-                            }
+                        DetectFaces (faceMaskMat,  out detectResult, useDlibFaceDetecter);
+                        if (detectResult.Count >= 1) {
+                            detectedFaceRect = new UnityEngine.Rect (detectResult [0].x, detectResult [0].y, detectResult [0].width, detectResult [0].height);
                         }
                     }
 
@@ -382,7 +414,7 @@ namespace FaceSwapperExample
                             OpenCVForUnityUtils.DrawFaceRect (faceMaskMat, detectedFaceRect, new Scalar (255, 0, 0, 255), 2);
                         }
                     }
-                } else if (landmarkPoints.Count >= 2) {
+                } else if (landmarkPoints.Count >= 2) { // Apply face changing between detected faces.
                     faceChanger.SetTargetImage (rgbaMat);
                     for (int i = 1; i < landmarkPoints.Count; i ++) {
                         faceChanger.AddFaceChangeData (rgbaMat, landmarkPoints [0], landmarkPoints [i], 1);
@@ -392,8 +424,9 @@ namespace FaceSwapperExample
 
                 // draw face rects.
                 if (displayFaceRects) {
-                    for (int i = 0; i < detectResult.Count; i++) {
-                        UnityEngine.Rect rect = new UnityEngine.Rect (detectResult [i].x, detectResult [i].y, detectResult [i].width, detectResult [i].height);
+                    for (int i = 0; i < trackedRects.Count; i++) {
+                        OpenCVForUnity.Rect openCVRect = trackedRects[i];
+                        UnityEngine.Rect rect = new UnityEngine.Rect (openCVRect.x, openCVRect.y, openCVRect.width, openCVRect.height);
                         OpenCVForUnityUtils.DrawFaceRect (rgbaMat, rect, new Scalar (255, 0, 0, 255), 2);
                         //Imgproc.putText (rgbaMat, " " + frontalFaceParam.getAngleOfFrontalFace (landmarkPoints [i]), new Point (rect.xMin, rect.yMin - 10), Core.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255, 255), 2, Imgproc.LINE_AA, false);
                         //Imgproc.putText (rgbaMat, " " + frontalFaceParam.getFrontalFaceRate (landmarkPoints [i]), new Point (rect.xMin, rect.yMin - 10), Core.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255, 255), 2, Imgproc.LINE_AA, false);
@@ -414,14 +447,47 @@ namespace FaceSwapperExample
                     trans.put (1, 2, ty);
 
                     Imgproc.warpAffine (faceMaskMat, rgbaMat, trans, rgbaMat.size (), Imgproc.INTER_LINEAR, Core.BORDER_TRANSPARENT, new Scalar (0));
+
+                    if (displayFaceRects || displayDebugFacePoints)
+                        OpenCVForUnity.Utils.texture2DToMat (faceMaskTexture, faceMaskMat);
                 }
 
-                Imgproc.putText (rgbaMat, "W:" + rgbaMat.width () + " H:" + rgbaMat.height () + " SO:" + Screen.orientation, new Point (5, rgbaMat.rows () - 10), Core.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255, 255), 1, Imgproc.LINE_AA, false);
+//                Imgproc.putText (rgbaMat, "W:" + rgbaMat.width () + " H:" + rgbaMat.height () + " SO:" + Screen.orientation, new Point (5, rgbaMat.rows () - 10), Core.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255, 255), 1, Imgproc.LINE_AA, false);
 
-                OpenCVForUnity.Utils.matToTexture2D (rgbaMat, texture, colors);
+                OpenCVForUnity.Utils.fastMatToTexture2D (rgbaMat, texture);
             }
         }
 
+        private void DetectFaces (Mat rgbaMat, out List<OpenCVForUnity.Rect> detectResult, bool useDlibFaceDetecter)
+        {
+            detectResult = new List<OpenCVForUnity.Rect> ();
+
+            if (useDlibFaceDetecter) {
+                OpenCVForUnityUtils.SetImage (faceLandmarkDetector, rgbaMat);
+                List<UnityEngine.Rect> result = faceLandmarkDetector.Detect ();
+
+                foreach (var unityRect in result) {
+                    detectResult.Add (new OpenCVForUnity.Rect ((int)unityRect.x, (int)unityRect.y, (int)unityRect.width, (int)unityRect.height));
+                }
+            } else {
+                // convert image to greyscale.
+                Imgproc.cvtColor (rgbaMat, grayMat, Imgproc.COLOR_RGBA2GRAY);
+
+                using (Mat equalizeHistMat = new Mat ())
+                using (MatOfRect faces = new MatOfRect ()) {
+                    Imgproc.equalizeHist (grayMat, equalizeHistMat);
+
+                    cascade.detectMultiScale (equalizeHistMat, faces, 1.1f, 2, 0 | Objdetect.CASCADE_SCALE_IMAGE, new OpenCVForUnity.Size (equalizeHistMat.cols () * 0.15, equalizeHistMat.cols () * 0.15), new Size ());
+
+                    detectResult = faces.toList ();
+
+                    // adjust to Dilb's result.
+                    foreach (OpenCVForUnity.Rect r in detectResult) {
+                        r.y += (int)(r.height * 0.1f);
+                    }
+                }
+            }
+        }
 
         /// <summary>
         /// Raises the destroy event.
@@ -438,6 +504,15 @@ namespace FaceSwapperExample
 
             if (faceLandmarkDetector != null)
                 faceLandmarkDetector.Dispose ();
+
+            foreach (var key in lowPassFilterDict.Keys) {
+                lowPassFilterDict [key].Dispose ();
+            }
+            lowPassFilterDict.Clear ();
+            foreach (var key in opticalFlowFilterDict.Keys) {
+                opticalFlowFilterDict [key].Dispose ();
+            }
+            opticalFlowFilterDict.Clear ();
 
             if (faceChanger != null)
                 faceChanger.Dispose ();
@@ -494,7 +569,16 @@ namespace FaceSwapperExample
         /// </summary>
         public void OnChangeCameraButtonClick ()
         {
-            webCamTextureToMatHelper.Initialize (null, webCamTextureToMatHelper.requestedWidth, webCamTextureToMatHelper.requestedHeight, !webCamTextureToMatHelper.requestedIsFrontFacing);
+            #if UNITY_ANDROID && !UNITY_EDITOR
+            if (!webCamTextureToMatHelper.IsFrontFacing ()) {
+                rearCameraRequestedFPS = webCamTextureToMatHelper.requestedFPS;
+                webCamTextureToMatHelper.Initialize (!webCamTextureToMatHelper.IsFrontFacing (), 15, webCamTextureToMatHelper.rotate90Degree);
+            } else {                
+                webCamTextureToMatHelper.Initialize (!webCamTextureToMatHelper.IsFrontFacing (), rearCameraRequestedFPS, webCamTextureToMatHelper.rotate90Degree);
+            }
+            #else
+            webCamTextureToMatHelper.requestedIsFrontFacing = !webCamTextureToMatHelper.IsFrontFacing ();
+            #endif
         }
 
         /// <summary>
@@ -508,16 +592,22 @@ namespace FaceSwapperExample
                 useDlibFaceDetecter = false;
             }
         }
-        
+
         /// <summary>
-        /// Raises the enable tracking toggle value changed event.
+        /// Raises the enable noise filter toggle value changed event.
         /// </summary>
-        public void OnEnableTrackingToggleValueChanged ()
+        public void OnEnableNoiseFilterToggleValueChanged ()
         {
-            if (enableTrackingToggle.isOn) {
-                enableTracking = true;
+            if (enableNoiseFilterToggle.isOn) {
+                enableNoiseFilter = true;
+                foreach (var key in lowPassFilterDict.Keys) {
+                    lowPassFilterDict [key].Reset ();
+                }
+                foreach (var key in opticalFlowFilterDict.Keys) {
+                    opticalFlowFilterDict [key].Reset ();
+                }
             } else {
-                enableTracking = false;
+                enableNoiseFilter = false;
             }
         }
 
