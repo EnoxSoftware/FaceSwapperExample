@@ -3,7 +3,12 @@ FaceSwapper Example
 
 Overview
 -----
-<https://www.assetstore.unity3d.com/#!/content/66602>
+[https://assetstore.unity.com/packages/templates/tutorials/faceswapper-example-66602](https://assetstore.unity.com/packages/templates/tutorials/faceswapper-example-66602?aid=1011l4ehR)
+
+Environment
+-----
+[OpenCVForUnity](https://assetstore.unity.com/packages/tools/integration/opencv-for-unity-21088?aid=1011l4ehR)  
+[DlibFaceLandmarkDetector](https://assetstore.unity.com/packages/tools/integration/dlib-facelandmark-detector-64314?aid=1011l4ehR)
 
 Demo Video
 -----
