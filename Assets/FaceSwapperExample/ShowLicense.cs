@@ -1,15 +1,11 @@
-﻿using UnityEngine;
-using System.Collections;
-
-#if UNITY_5_3 || UNITY_5_3_OR_NEWER
+﻿using System.Collections;
+using UnityEngine;
 using UnityEngine.SceneManagement;
-#endif
 
 namespace FaceSwapperExample
 {
-
     /// <summary>
-    /// Show license.
+    /// Show License
     /// </summary>
     public class ShowLicense : MonoBehaviour
     {
@@ -27,11 +23,7 @@ namespace FaceSwapperExample
 
         public void OnBackButtonClick ()
         {
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
             SceneManager.LoadScene ("FaceSwapperExample");
-            #else
-            Application.LoadLevel ("FaceSwapperExample");
-            #endif
         }
     }
 }

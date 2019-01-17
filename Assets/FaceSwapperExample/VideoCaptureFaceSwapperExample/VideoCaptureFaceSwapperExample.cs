@@ -3,14 +3,16 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using DlibFaceLandmarkDetector;
-using OpenCVForUnity;
 using OpenCVForUnity.FaceSwap;
 using OpenCVForUnity.RectangleTrack;
-
-#if UNITY_5_3 || UNITY_5_3_OR_NEWER
-using UnityEngine.SceneManagement;
-#endif
+using OpenCVForUnity.VideoioModule;
+using OpenCVForUnity.CoreModule;
+using OpenCVForUnity.ObjdetectModule;
+using OpenCVForUnity.ImgprocModule;
+using Rect = OpenCVForUnity.CoreModule.Rect;
+using VideoCapture = OpenCVForUnity.VideoioModule.VideoCapture;
 
 namespace FaceSwapperExample
 {
@@ -166,7 +168,7 @@ namespace FaceSwapperExample
         string couple_avi_filepath;
 
         #if UNITY_WEBGL && !UNITY_EDITOR
-        Stack<IEnumerator> coroutines = new Stack<IEnumerator> ();
+        IEnumerator getFilePath_Coroutine;
         #endif
 
         // Use this for initialization
@@ -175,13 +177,12 @@ namespace FaceSwapperExample
             capture = new VideoCapture ();
 
             #if UNITY_WEBGL && !UNITY_EDITOR
-            var getFilePath_Coroutine = GetFilePath ();
-            coroutines.Push (getFilePath_Coroutine);
+            getFilePath_Coroutine = GetFilePath ();
             StartCoroutine (getFilePath_Coroutine);
             #else
-            haarcascade_frontalface_alt_xml_filepath = OpenCVForUnity.Utils.getFilePath ("haarcascade_frontalface_alt.xml");
-            sp_human_face_68_dat_filepath = DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68.dat");
-            couple_avi_filepath = OpenCVForUnity.Utils.getFilePath ("couple.avi");
+            haarcascade_frontalface_alt_xml_filepath = OpenCVForUnity.UnityUtils.Utils.getFilePath ("haarcascade_frontalface_alt.xml");
+            sp_human_face_68_dat_filepath = DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePath ("sp_human_face_68.dat");
+            couple_avi_filepath = OpenCVForUnity.UnityUtils.Utils.getFilePath ("couple.avi");
             Run ();
             #endif
         }
@@ -189,25 +190,22 @@ namespace FaceSwapperExample
         #if UNITY_WEBGL && !UNITY_EDITOR
         private IEnumerator GetFilePath()
         {
-            var getFilePathAsync_0_Coroutine = OpenCVForUnity.Utils.getFilePathAsync ("haarcascade_frontalface_alt.xml", (result) => {
+            var getFilePathAsync_0_Coroutine = OpenCVForUnity.UnityUtils.Utils.getFilePathAsync ("haarcascade_frontalface_alt.xml", (result) => {
                 haarcascade_frontalface_alt_xml_filepath = result;
             });
-            coroutines.Push (getFilePathAsync_0_Coroutine);
-            yield return StartCoroutine (getFilePathAsync_0_Coroutine);
+            yield return getFilePathAsync_0_Coroutine;
 
-            var getFilePathAsync_1_Coroutine = DlibFaceLandmarkDetector.Utils.getFilePathAsync ("sp_human_face_68.dat", (result) => {
+            var getFilePathAsync_1_Coroutine = DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePathAsync ("sp_human_face_68.dat", (result) => {
                 sp_human_face_68_dat_filepath = result;
             });
-            coroutines.Push (getFilePathAsync_1_Coroutine);
-            yield return StartCoroutine (getFilePathAsync_1_Coroutine);
+            yield return getFilePathAsync_1_Coroutine;
 
-            var getFilePathAsync_2_Coroutine = OpenCVForUnity.Utils.getFilePathAsync ("couple.avi", (result) => {
+            var getFilePathAsync_2_Coroutine = OpenCVForUnity.UnityUtils.Utils.getFilePathAsync ("couple.avi", (result) => {
                 couple_avi_filepath = result;
             });
-            coroutines.Push (getFilePathAsync_2_Coroutine);
-            yield return StartCoroutine (getFilePathAsync_2_Coroutine);
+            yield return getFilePathAsync_2_Coroutine;
 
-            coroutines.Clear ();
+            getFilePath_Coroutine = null;
 
             Run ();
         }
@@ -240,7 +238,6 @@ namespace FaceSwapperExample
 
 
             Debug.Log ("CAP_PROP_FORMAT: " + capture.get (Videoio.CAP_PROP_FORMAT));
-            Debug.Log ("CV_CAP_PROP_PREVIEW_FORMAT: " + capture.get (Videoio.CV_CAP_PROP_PREVIEW_FORMAT));
             Debug.Log ("CAP_PROP_POS_MSEC: " + capture.get (Videoio.CAP_PROP_POS_MSEC));
             Debug.Log ("CAP_PROP_POS_FRAMES: " + capture.get (Videoio.CAP_PROP_POS_FRAMES));
             Debug.Log ("CAP_PROP_POS_AVI_RATIO: " + capture.get (Videoio.CAP_PROP_POS_AVI_RATIO));
@@ -294,13 +291,13 @@ namespace FaceSwapperExample
 
 
                 // detect faces.
-                List<OpenCVForUnity.Rect> detectResult = new List<OpenCVForUnity.Rect> ();
+                List<Rect> detectResult = new List<Rect> ();
                 if (useDlibFaceDetecter) {
                     OpenCVForUnityUtils.SetImage (faceLandmarkDetector, rgbMat);
                     List<UnityEngine.Rect> result = faceLandmarkDetector.Detect ();
 
                     foreach (var unityRect in result) {
-                        detectResult.Add (new OpenCVForUnity.Rect ((int)unityRect.x, (int)unityRect.y, (int)unityRect.width, (int)unityRect.height));
+                        detectResult.Add (new Rect ((int)unityRect.x, (int)unityRect.y, (int)unityRect.width, (int)unityRect.height));
                     }
                 } else {
                     // convert image to greyscale.
@@ -311,12 +308,12 @@ namespace FaceSwapperExample
                     using (MatOfRect faces = new MatOfRect ()) {
                         Imgproc.equalizeHist (grayMat, equalizeHistMat);
 
-                        cascade.detectMultiScale (equalizeHistMat, faces, 1.1f, 2, 0 | Objdetect.CASCADE_SCALE_IMAGE, new OpenCVForUnity.Size (equalizeHistMat.cols () * 0.15, equalizeHistMat.cols () * 0.15), new Size ());
+                        cascade.detectMultiScale (equalizeHistMat, faces, 1.1f, 2, 0 | Objdetect.CASCADE_SCALE_IMAGE, new Size (equalizeHistMat.cols () * 0.15, equalizeHistMat.cols () * 0.15), new Size ());
 
                         detectResult = faces.toList ();
 
-                        // adjust to Dilb's result.
-                        foreach (OpenCVForUnity.Rect r in detectResult) {
+                        // correct the deviation of the detection result of the face rectangle of OpenCV and Dlib.
+                        foreach (Rect r in detectResult) {
                             r.y += (int)(r.height * 0.1f);
                         }
                     }
@@ -330,11 +327,11 @@ namespace FaceSwapperExample
                 // create noise filter.
                 foreach (var openCVRect in trackedRects) {
                     if (openCVRect.state == TrackedState.NEW) {
-                        if (!lowPassFilterDict.ContainsKey(openCVRect.id))
-                            lowPassFilterDict.Add (openCVRect.id, new LowPassPointsFilter((int)faceLandmarkDetector.GetShapePredictorNumParts()));
-                        if (!opticalFlowFilterDict.ContainsKey(openCVRect.id))
-                            opticalFlowFilterDict.Add (openCVRect.id, new OFPointsFilter((int)faceLandmarkDetector.GetShapePredictorNumParts()));
-                    }else if (openCVRect.state == TrackedState.DELETED){
+                        if (!lowPassFilterDict.ContainsKey (openCVRect.id))
+                            lowPassFilterDict.Add (openCVRect.id, new LowPassPointsFilter ((int)faceLandmarkDetector.GetShapePredictorNumParts ()));
+                        if (!opticalFlowFilterDict.ContainsKey (openCVRect.id))
+                            opticalFlowFilterDict.Add (openCVRect.id, new OFPointsFilter ((int)faceLandmarkDetector.GetShapePredictorNumParts ()));
+                    } else if (openCVRect.state == TrackedState.DELETED) {
                         if (lowPassFilterDict.ContainsKey (openCVRect.id)) {
                             lowPassFilterDict [openCVRect.id].Dispose ();
                             lowPassFilterDict.Remove (openCVRect.id);
@@ -357,8 +354,8 @@ namespace FaceSwapperExample
 
                         // apply noise filter.
                         if (enableNoiseFilter) {
-                            opticalFlowFilterDict[openCVRect.id].Process (rgbMat, points, points);
-                            lowPassFilterDict[openCVRect.id].Process (rgbMat, points, points);
+                            opticalFlowFilterDict [openCVRect.id].Process (rgbMat, points, points);
+                            lowPassFilterDict [openCVRect.id].Process (rgbMat, points, points);
                         }
 
                         landmarkPoints.Add (points);
@@ -390,16 +387,16 @@ namespace FaceSwapperExample
                 // draw face rects.
                 if (displayFaceRects) {
                     for (int i = 0; i < trackedRects.Count; i++) {
-                        OpenCVForUnity.Rect openCVRect = trackedRects[i];
+                        Rect openCVRect = trackedRects [i];
                         UnityEngine.Rect rect = new UnityEngine.Rect (openCVRect.x, openCVRect.y, openCVRect.width, openCVRect.height);
                         OpenCVForUnityUtils.DrawFaceRect (rgbMat, rect, new Scalar (255, 0, 0, 255), 2);
-                        //Imgproc.putText (rgbMat, " " + frontalFaceParam.getFrontalFaceRate (landmarkPoints [i]), new Point (rect.xMin, rect.yMin - 10), Core.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255), 2, Imgproc.LINE_AA, false);
+                        //Imgproc.putText (rgbMat, " " + frontalFaceChecker.GetFrontalFaceRate (landmarkPoints [i]), new Point (rect.xMin, rect.yMin - 10), Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255), 2, Imgproc.LINE_AA, false);
                     }
                 }
 
-//                Imgproc.putText (rgbMat, "W:" + rgbMat.width () + " H:" + rgbMat.height () + " SO:" + Screen.orientation, new Point (5, rgbMat.rows () - 10), Core.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255), 1, Imgproc.LINE_AA, false);
+//                Imgproc.putText (rgbMat, "W:" + rgbMat.width () + " H:" + rgbMat.height () + " SO:" + Screen.orientation, new Point (5, rgbMat.rows () - 10), Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255), 1, Imgproc.LINE_AA, false);
 
-                OpenCVForUnity.Utils.fastMatToTexture2D (rgbMat, texture);
+                OpenCVForUnity.UnityUtils.Utils.fastMatToTexture2D (rgbMat, texture);
             }
         }
 
@@ -437,9 +434,9 @@ namespace FaceSwapperExample
                 frontalFaceChecker.Dispose ();
 
             #if UNITY_WEBGL && !UNITY_EDITOR
-            foreach (var coroutine in coroutines) {
-                StopCoroutine (coroutine);
-                ((IDisposable)coroutine).Dispose ();
+            if (getFilePath_Coroutine != null) {
+                StopCoroutine (getFilePath_Coroutine);
+                ((IDisposable)getFilePath_Coroutine).Dispose ();
             }
             #endif
         }
@@ -449,11 +446,7 @@ namespace FaceSwapperExample
         /// </summary>
         public void OnBackButtonClick ()
         {
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
             SceneManager.LoadScene ("FaceSwapperExample");
-            #else
-            Application.LoadLevel ("FaceSwapperExample");
-            #endif
         }
 
         /// <summary>
@@ -510,7 +503,7 @@ namespace FaceSwapperExample
             }
             faceSwapper.useSeamlessCloneForPasteFaces = useSeamlessClone;
         }
-        
+
         /// <summary>
         /// Raises the display face rects toggle value changed event.
         /// </summary>

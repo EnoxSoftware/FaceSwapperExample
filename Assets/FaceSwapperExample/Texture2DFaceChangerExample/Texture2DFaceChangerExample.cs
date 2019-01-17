@@ -5,13 +5,13 @@ using System.IO;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
-using DlibFaceLandmarkDetector;
-using OpenCVForUnity;
-using OpenCVForUnity.FaceChange;
-
-#if UNITY_5_3 || UNITY_5_3_OR_NEWER
 using UnityEngine.SceneManagement;
-#endif
+using DlibFaceLandmarkDetector;
+using OpenCVForUnity.FaceChange;
+using OpenCVForUnity.ObjdetectModule;
+using OpenCVForUnity.CoreModule;
+using OpenCVForUnity.ImgprocModule;
+using Rect = OpenCVForUnity.CoreModule.Rect;
 
 namespace FaceSwapperExample
 {
@@ -92,19 +92,18 @@ namespace FaceSwapperExample
         string sp_human_face_68_dat_filepath;
 
         #if UNITY_WEBGL && !UNITY_EDITOR
-        Stack<IEnumerator> coroutines = new Stack<IEnumerator> ();
+        IEnumerator getFilePath_Coroutine;
         #endif
 
         // Use this for initialization
         void Start ()
         {
             #if UNITY_WEBGL && !UNITY_EDITOR
-            var getFilePath_Coroutine = GetFilePath ();
-            coroutines.Push (getFilePath_Coroutine);
+            getFilePath_Coroutine = GetFilePath ();
             StartCoroutine (getFilePath_Coroutine);
             #else
-            haarcascade_frontalface_alt_xml_filepath = OpenCVForUnity.Utils.getFilePath ("haarcascade_frontalface_alt.xml");
-            sp_human_face_68_dat_filepath = DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68.dat");
+            haarcascade_frontalface_alt_xml_filepath = OpenCVForUnity.UnityUtils.Utils.getFilePath ("haarcascade_frontalface_alt.xml");
+            sp_human_face_68_dat_filepath = DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePath ("sp_human_face_68.dat");
             Run ();
             #endif
         }
@@ -112,19 +111,17 @@ namespace FaceSwapperExample
         #if UNITY_WEBGL && !UNITY_EDITOR
         private IEnumerator GetFilePath()
         {
-            var getFilePathAsync_0_Coroutine = OpenCVForUnity.Utils.getFilePathAsync ("haarcascade_frontalface_alt.xml", (result) => {
+            var getFilePathAsync_0_Coroutine = OpenCVForUnity.UnityUtils.Utils.getFilePathAsync ("haarcascade_frontalface_alt.xml", (result) => {
                 haarcascade_frontalface_alt_xml_filepath = result;
             });
-            coroutines.Push (getFilePathAsync_0_Coroutine);
-            yield return StartCoroutine (getFilePathAsync_0_Coroutine);
+            yield return getFilePathAsync_0_Coroutine;
 
-            var getFilePathAsync_1_Coroutine = DlibFaceLandmarkDetector.Utils.getFilePathAsync ("sp_human_face_68.dat", (result) => {
+            var getFilePathAsync_1_Coroutine = DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePathAsync ("sp_human_face_68.dat", (result) => {
                 sp_human_face_68_dat_filepath = result;
             });
-            coroutines.Push (getFilePathAsync_1_Coroutine);
-            yield return StartCoroutine (getFilePathAsync_1_Coroutine);
+            yield return getFilePathAsync_1_Coroutine;
 
-            coroutines.Clear ();
+            getFilePath_Coroutine = null;
 
             Run ();
         }
@@ -160,7 +157,7 @@ namespace FaceSwapperExample
 
             Mat rgbaMat = new Mat (imgTexture.height, imgTexture.width, CvType.CV_8UC4);
 
-            OpenCVForUnity.Utils.texture2DToMat (imgTexture, rgbaMat);
+            OpenCVForUnity.UnityUtils.Utils.texture2DToMat (imgTexture, rgbaMat);
             Debug.Log ("rgbaMat ToString " + rgbaMat.ToString ());
 
             if (faceLandmarkDetector == null)
@@ -169,13 +166,13 @@ namespace FaceSwapperExample
             FrontalFaceChecker frontalFaceChecker = new FrontalFaceChecker (width, height);
 
             // detect faces.
-            List<OpenCVForUnity.Rect> detectResult = new List<OpenCVForUnity.Rect> ();
+            List<Rect> detectResult = new List<Rect> ();
             if (useDlibFaceDetecter) {
                 OpenCVForUnityUtils.SetImage (faceLandmarkDetector, rgbaMat);
                 List<UnityEngine.Rect> result = faceLandmarkDetector.Detect ();
 
                 foreach (var unityRect in result) {
-                    detectResult.Add (new OpenCVForUnity.Rect ((int)unityRect.x, (int)unityRect.y, (int)unityRect.width, (int)unityRect.height));
+                    detectResult.Add (new Rect ((int)unityRect.x, (int)unityRect.y, (int)unityRect.width, (int)unityRect.height));
                 }
             } else {
                 if (cascade == null)
@@ -190,13 +187,13 @@ namespace FaceSwapperExample
 
                 MatOfRect faces = new MatOfRect ();
                 Imgproc.equalizeHist (gray, gray);
-                cascade.detectMultiScale (gray, faces, 1.1f, 2, 0 | Objdetect.CASCADE_SCALE_IMAGE, new OpenCVForUnity.Size (gray.cols () * 0.05, gray.cols () * 0.05), new Size ());
+                cascade.detectMultiScale (gray, faces, 1.1f, 2, 0 | Objdetect.CASCADE_SCALE_IMAGE, new Size (gray.cols () * 0.05, gray.cols () * 0.05), new Size ());
                 //Debug.Log ("faces " + faces.dump ());
 
                 detectResult = faces.toList ();
 
-                // adjust to Dilb's result.
-                foreach (OpenCVForUnity.Rect r in detectResult) {
+                // correct the deviation of the detection result of the face rectangle of OpenCV and Dlib.
+                foreach (Rect r in detectResult) {
                     r.y += (int)(r.height * 0.1f);
                 }
 
@@ -243,7 +240,7 @@ namespace FaceSwapperExample
 
                 faceChanger.SetTargetImage (rgbaMat);
 
-                for (int i = 1; i < face_nums.Length; i ++) {
+                for (int i = 1; i < face_nums.Length; i++) {
                     faceChanger.AddFaceChangeData (rgbaMat, landmarkPoints [face_nums [0]], landmarkPoints [face_nums [i]], 1);
                 }
 
@@ -253,12 +250,12 @@ namespace FaceSwapperExample
 
             // draw face rects.
             if (displayFaceRects && face_nums.Count () > 0) {
-                int ann = face_nums[0]; 
+                int ann = face_nums [0]; 
                 UnityEngine.Rect rect_ann = new UnityEngine.Rect (detectResult [ann].x, detectResult [ann].y, detectResult [ann].width, detectResult [ann].height);
                 OpenCVForUnityUtils.DrawFaceRect (rgbaMat, rect_ann, new Scalar (255, 255, 0, 255), 2);
                 
                 int bob = 0;
-                for (int i = 1; i < face_nums.Length; i ++) {
+                for (int i = 1; i < face_nums.Length; i++) {
                     bob = face_nums [i];
                     UnityEngine.Rect rect_bob = new UnityEngine.Rect (detectResult [bob].x, detectResult [bob].y, detectResult [bob].width, detectResult [bob].height);
                     OpenCVForUnityUtils.DrawFaceRect (rgbaMat, rect_bob, new Scalar (255, 0, 0, 255), 2);
@@ -268,7 +265,7 @@ namespace FaceSwapperExample
             frontalFaceChecker.Dispose ();
 
             Texture2D texture = new Texture2D (rgbaMat.cols (), rgbaMat.rows (), TextureFormat.RGBA32, false);
-            OpenCVForUnity.Utils.matToTexture2D (rgbaMat, texture);
+            OpenCVForUnity.UnityUtils.Utils.matToTexture2D (rgbaMat, texture);
             gameObject.GetComponent<Renderer> ().material.mainTexture = texture;
 
             rgbaMat.Dispose ();
@@ -286,9 +283,9 @@ namespace FaceSwapperExample
                 cascade.Dispose ();
 
             #if UNITY_WEBGL && !UNITY_EDITOR
-            foreach (var coroutine in coroutines) {
-                StopCoroutine (coroutine);
-                ((IDisposable)coroutine).Dispose ();
+            if (getFilePath_Coroutine != null) {
+                StopCoroutine (getFilePath_Coroutine);
+                ((IDisposable)getFilePath_Coroutine).Dispose ();
             }
             #endif
         }
@@ -298,11 +295,7 @@ namespace FaceSwapperExample
         /// </summary>
         public void OnBackButtonClick ()
         {
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
             SceneManager.LoadScene ("FaceSwapperExample");
-            #else
-            Application.LoadLevel ("FaceSwapperExample");
-            #endif
         }
 
         /// <summary>
@@ -343,7 +336,7 @@ namespace FaceSwapperExample
             if (imgTexture != null)
                 Run ();
         }
-        
+
         /// <summary>
         /// Raises the display face rects toggle value changed event.
         /// </summary>

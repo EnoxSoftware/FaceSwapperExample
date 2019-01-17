@@ -1,15 +1,13 @@
-﻿using UnityEngine;
-using System.Collections;
+﻿using System.Collections;
+using UnityEngine;
 using UnityEngine.UI;
-
-#if UNITY_5_3 || UNITY_5_3_OR_NEWER
 using UnityEngine.SceneManagement;
-#endif
+using OpenCVForUnity.CoreModule;
 
 namespace FaceSwapperExample
 {
     /// <summary>
-    /// Face swapper example.
+    /// FaceSwapper Example
     /// </summary>
     public class FaceSwapperExample : MonoBehaviour
     {
@@ -23,8 +21,8 @@ namespace FaceSwapperExample
         {
             exampleTitle.text = "FaceSwapper Example " + Application.version;
 
-            versionInfo.text = OpenCVForUnity.Core.NATIVE_LIBRARY_NAME + " " + OpenCVForUnity.Utils.getVersion () + " (" + OpenCVForUnity.Core.VERSION + ")";
-            versionInfo.text += " / " + "dlibfacelandmarkdetector" + " " + DlibFaceLandmarkDetector.Utils.getVersion ();
+            versionInfo.text = Core.NATIVE_LIBRARY_NAME + " " + OpenCVForUnity.UnityUtils.Utils.getVersion () + " (" + Core.VERSION + ")";
+            versionInfo.text += " / " + "dlibfacelandmarkdetector" + " " + DlibFaceLandmarkDetector.UnityUtils.Utils.getVersion ();
             versionInfo.text += " / UnityEditor " + Application.unityVersion;
             versionInfo.text += " / ";
 
@@ -45,9 +43,9 @@ namespace FaceSwapperExample
             #elif UNITY_WEBGL
             versionInfo.text += "WebGL";
             #endif
-            versionInfo.text +=  " ";
+            versionInfo.text += " ";
             #if ENABLE_MONO
-            versionInfo.text +=  "Mono";
+            versionInfo.text += "Mono";
             #elif ENABLE_IL2CPP
             versionInfo.text += "IL2CPP";
             #elif ENABLE_DOTNET
@@ -70,56 +68,32 @@ namespace FaceSwapperExample
 
         public void OnShowLicenseButtonClick ()
         {
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
             SceneManager.LoadScene ("ShowLicense");
-            #else
-            Application.LoadLevel ("ShowLicense");
-            #endif
         }
 
         public void OnTexture2DFaceSwapperExampleButtonClick ()
         {
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
             SceneManager.LoadScene ("Texture2DFaceSwapperExample");
-            #else
-            Application.LoadLevel ("Texture2DFaceSwapperExample");
-            #endif
         }
 
         public void OnWebCamTextureFaceSwapperExampleButtonClick ()
         {
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
             SceneManager.LoadScene ("WebCamTextureFaceSwapperExample");
-            #else
-            Application.LoadLevel ("WebCamTextureFaceSwapperExample");
-            #endif
         }
 
         public void OnVideoCaptureFaceSwapperExampleButtonClick ()
         {
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
             SceneManager.LoadScene ("VideoCaptureFaceSwapperExample");
-            #else
-            Application.LoadLevel ("VideoCaptureFaceSwapperExample");
-            #endif
         }
 
         public void OnTexture2DFaceChangerExampleButtonClick ()
         {
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
             SceneManager.LoadScene ("Texture2DFaceChangerExample");
-            #else
-            Application.LoadLevel ("Texture2DFaceChangerExample");
-            #endif
         }
 
         public void OnWebCamTextureFaceChangerExampleButtonClick ()
         {
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
             SceneManager.LoadScene ("WebCamTextureFaceChangerExample");
-            #else
-            Application.LoadLevel ("WebCamTextureFaceChangerExample");
-            #endif
         }
     }
 }
