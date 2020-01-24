@@ -4,6 +4,7 @@ using UnityEngine;
 using OpenCVForUnity.CoreModule;
 using OpenCVForUnity.ImgprocModule;
 using Rect = OpenCVForUnity.CoreModule.Rect;
+using OpenCVForUnity.UtilsModule;
 
 namespace OpenCVForUnity.FaceChange
 {
@@ -528,11 +529,11 @@ namespace OpenCVForUnity.FaceChange
         private void AlphaBlend_pixel (Mat fg, Mat bg, Mat alpha, Mat dst)
         {
             byte[] fg_byte = new byte[fg.total () * fg.channels ()];
-            OpenCVForUnity.UnityUtils.Utils.copyFromMat<byte> (fg, fg_byte);
+            MatUtils.copyFromMat<byte> (fg, fg_byte);
             byte[] bg_byte = new byte[bg.total () * bg.channels ()];
-            OpenCVForUnity.UnityUtils.Utils.copyFromMat<byte> (bg, bg_byte);
+            MatUtils.copyFromMat<byte> (bg, bg_byte);
             byte[] alpha_byte = new byte[alpha.total () * alpha.channels ()];
-            OpenCVForUnity.UnityUtils.Utils.copyFromMat<byte> (alpha, alpha_byte);
+            MatUtils.copyFromMat<byte> (alpha, alpha_byte);
 
             int pixel_i = 0;
             int channels = (int)bg.channels ();
@@ -552,7 +553,7 @@ namespace OpenCVForUnity.FaceChange
                 pixel_i += channels;
             }
 
-            OpenCVForUnity.UnityUtils.Utils.copyToMat (bg_byte, dst);
+            MatUtils.copyToMat (bg_byte, dst);
         }
 
         List<Mat> channels = new List<Mat> ();
@@ -748,11 +749,11 @@ namespace OpenCVForUnity.FaceChange
             double[] target_histMax = new double[3];
 
             byte[] mask_byte = new byte[mask.total () * mask.channels ()];
-            OpenCVForUnity.UnityUtils.Utils.copyFromMat<byte> (mask, mask_byte);
+            MatUtils.copyFromMat<byte> (mask, mask_byte);
             byte[] source_image_byte = new byte[source_image.total () * source_image.channels ()];
-            OpenCVForUnity.UnityUtils.Utils.copyFromMat<byte> (source_image, source_image_byte);
+            MatUtils.copyFromMat<byte> (source_image, source_image_byte);
             byte[] target_image_byte = new byte[target_image.total () * target_image.channels ()];
-            OpenCVForUnity.UnityUtils.Utils.copyFromMat<byte> (target_image, target_image_byte);
+            MatUtils.copyFromMat<byte> (target_image, target_image_byte);
 
             int pixel_i = 0;
             int channels = (int)source_image.channels ();
@@ -862,7 +863,7 @@ namespace OpenCVForUnity.FaceChange
                 pixel_i += channels;
             }
 
-            OpenCVForUnity.UnityUtils.Utils.copyToMat (target_image_byte, target_image);
+            MatUtils.copyToMat (target_image_byte, target_image);
         }
 
 
