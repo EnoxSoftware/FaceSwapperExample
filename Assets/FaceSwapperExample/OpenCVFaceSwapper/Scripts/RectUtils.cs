@@ -1,5 +1,5 @@
-﻿using System;
-using OpenCVForUnity.CoreModule;
+﻿using OpenCVForUnity.CoreModule;
+using System;
 
 namespace OpenCVForUnity.FaceSwap
 {

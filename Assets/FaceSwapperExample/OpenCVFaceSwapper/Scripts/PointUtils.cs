@@ -1,5 +1,5 @@
-﻿using System;
-using OpenCVForUnity.CoreModule;
+﻿using OpenCVForUnity.CoreModule;
+using System;
 
 namespace OpenCVForUnity.FaceSwap
 {
@@ -11,9 +11,9 @@ namespace OpenCVForUnity.FaceSwap
         /// <param name="p1"></param>
         /// <param name="p2"></param>
         /// <returns></returns>
-        public static double Distance (Point p1, Point p2)
+        public static double Distance(Point p1, Point p2)
         {
-            return Math.Sqrt (Math.Pow (p2.x - p1.x, 2) + Math.Pow (p2.y - p1.y, 2));
+            return Math.Sqrt(Math.Pow(p2.x - p1.x, 2) + Math.Pow(p2.y - p1.y, 2));
         }
 
         /// <summary>
@@ -22,7 +22,7 @@ namespace OpenCVForUnity.FaceSwap
         /// <param name="p1"></param>
         /// <param name="p2"></param>
         /// <returns></returns>
-        public static double DotProduct (Point p1, Point p2)
+        public static double DotProduct(Point p1, Point p2)
         {
             return p1.x * p2.x + p1.y * p2.y;
         }
@@ -33,7 +33,7 @@ namespace OpenCVForUnity.FaceSwap
         /// <param name="p1"></param>
         /// <param name="p2"></param>
         /// <returns></returns>
-        public static double CrossProduct (Point p1, Point p2)
+        public static double CrossProduct(Point p1, Point p2)
         {
             return p1.x * p2.y - p2.x * p1.y;
         }
