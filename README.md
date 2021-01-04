@@ -21,7 +21,7 @@ Demo
 - WebGL(using sp_human_face_68_for_mobile.dat)
 <https://enoxsoftware.github.io/FaceSwapperExample/webgl_example_for_mobile/index.html>
 - Android
-<https://play.google.com/store/apps/details?id=com.enoxsoftware.faceswapperexample>
+[FaceSwapperExample.apk](/FaceSwapperExample.apk)
 
 Manual
 -----
