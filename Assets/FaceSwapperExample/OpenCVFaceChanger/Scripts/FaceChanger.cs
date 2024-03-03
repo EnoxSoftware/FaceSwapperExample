@@ -1,6 +1,6 @@
 using OpenCVForUnity.CoreModule;
 using OpenCVForUnity.ImgprocModule;
-using OpenCVForUnity.UtilsModule;
+using OpenCVForUnity.UnityUtils;
 using System;
 using System.Collections.Generic;
 using UnityEngine;

@@ -78,11 +78,6 @@ namespace FaceSwapperExample
         public Toggle displayDebugFacePointsToggle;
 
         /// <summary>
-        /// The upload face mask button.
-        /// </summary>
-        public Button uploadFaceMaskButton;
-
-        /// <summary>
         /// The gray mat.
         /// </summary>
         Mat grayMat;
@@ -201,7 +196,6 @@ namespace FaceSwapperExample
             getFilePath_Coroutine = null;
 
             Run();
-            uploadFaceMaskButton.interactable = true;
         }
 #endif
 
