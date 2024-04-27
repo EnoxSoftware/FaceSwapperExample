@@ -16,10 +16,8 @@ Demo Video
 
 Demo
 -----
-- WebGL
-<https://enoxsoftware.github.io/FaceSwapperExample/webgl_example/index.html>
-- Android
-<https://github.com/EnoxSoftware/FaceSwapperExample/releases>
+- WebGL (simd) <https://enoxsoftware.github.io/FaceSwapperExample/webgl_example/index.html>
+- Android <https://github.com/EnoxSoftware/FaceSwapperExample/releases>
 
 Manual
 -----
